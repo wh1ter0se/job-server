@@ -1,0 +1,18 @@
+{
+    "python.linting.pycodestyleEnabled": true,
+    "python.linting.enabled": true,
+    "black-formatter.args": [
+        "--line-length=100"
+    ],
+    "python.linting.pycodestyleArgs": [
+        "--max-line-length=100"
+        "--ignore=E203"
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
+    },
+    "editor.rulers": [
+        100
+    ]
+}
