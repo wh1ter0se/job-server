@@ -1,8 +1,8 @@
 import json
 import sqlite3
-import src.enums as enums
 from pathlib import Path
 from typing import Callable, Any
+from src.enums import ConfigValue
 
 
 class ConfigClient:
@@ -34,11 +34,11 @@ class ConfigClient:
             print(f"Error saving config file {self.config_file}: {e}")
             raise e
 
-    def get_value(self, key: str) -> Any:
+    def get(self, key: str) -> Any:
         """Get a value from the configuration."""
         return self._config.get(key)
 
-    def set_value(self, key: str, value: Any) -> None:
+    def set(self, key: str, value: Any) -> None:
         """Set a value in the configuration."""
         self._config[key] = value
         self._save_config()
@@ -55,7 +55,9 @@ class DatabaseClient:
         """Create a database connection to the SQLite database specified by db_file."""
         try:
             connection = sqlite3.connect(
-                self.config.get_value(enums.ConfigValue.DATABASE_PATH.value)
+                self.config.get(
+                    key=ConfigValue.DATABASE_PATH.value,
+                )
             )
             print(f"Connected to database: {db_file}")
             return connection
