@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class JobPriority(Enum):
     VERY_LOW = 1
     LOW = 2
@@ -7,8 +8,23 @@ class JobPriority(Enum):
     HIGH = 4
     VERY_HIGH = 5
 
+
+class JobStatus(Enum):
+    PENDING = "Pending"
+    RUNNING = "Running"
+    PAUSING = "Pausing"
+    PAUSED = "Paused"
+    RESUMING = "Resuming"
+    EXITING = "Exiting"
+    CLOSED = "Closed"
+
+
 class JobReturnCode(Enum):
     SUCCESS = "Success"
-    FAILURE = "Failure"
+    FAILED = "Failed"
     CANCELLED = "Cancelled"
     KILLED = "Killed"
+
+
+class JobErrorCode(Enum):
+    pass
