@@ -11,7 +11,7 @@ class ConfigClient:
 
     def __init__(
         self,
-        config_file: Path = Path("/assets/default_config.json"),
+        config_file: Path = Path("/.internal/config.json"),
     ):
         self.config_file = config_file
         self._load_config()
@@ -51,14 +51,14 @@ class DatabaseClient:
     def __init__(self, config: ConfigClient):
         self.config = config
 
-    def _get_connection(self, db_file: Path) -> sqlite3.Connection:
+    def _connect(self, db_file: Path) -> sqlite3.Connection:
         """Create a database connection to the SQLite database specified by db_file."""
         try:
-            connection = sqlite3.connect(
-                self.config.get(
-                    key=ConfigValue.DATABASE_PATH.value,
-                )
+            _db_path: str = self.config.get(
+                key=ConfigValue.DATABASE_PATH.value,
             )
+            db_path = Path(_db_path)
+            connection = sqlite3.connect(db_path)
             print(f"Connected to database: {db_file}")
             return connection
         except sqlite3.Error as e:

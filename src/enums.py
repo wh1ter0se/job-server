@@ -32,9 +32,7 @@ class JobErrorCode(Enum):
 
 class ConfigValue(Enum):
     # Paths
-    DEFAULT_CONFIG_PATH = "default_config_path"
     CONFIG_PATH = "config_path"
-    DATABASE_TEMPLATE_PATH = "database_template_path"
     DATABASE_PATH = "database_path"
 
     # Preferences
