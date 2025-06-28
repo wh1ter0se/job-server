@@ -1,2 +1,7 @@
+pip
+wheel
 nose
 sphinx
+setuptools
+fastapi
+setuptools

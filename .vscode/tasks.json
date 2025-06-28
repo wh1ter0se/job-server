@@ -1,0 +1,136 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "clean-venv",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "-m",
+                "venv",
+                "--clear",
+                ".venv"
+            ],
+            "problemMatcher": [
+                "$python"
+            ]
+        },
+        {
+            "label": "create-venv",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "-m",
+                "venv",
+                ".venv"
+            ],
+            "problemMatcher": [
+                "$python"
+            ]
+        },
+        {
+            "label": "install-requirements",
+            "type": "shell",
+            "command": "${cwd}\\.venv\\scripts\\python.exe",
+            "args": [
+                "-m",
+                "pip",
+                "install",
+                "--upgrade",
+                "-r",
+                "requirements.txt"
+            ],
+            "problemMatcher": [
+                "$python"
+            ]
+        },
+        {
+            "label": "active-venv",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "-m",
+                "venv",
+                "--activate",
+                ".venv"
+            ],
+            "problemMatcher": [
+                "$python"
+            ]
+        },
+        {
+            "label": "clean",
+            "type": "shell",
+            "command": "${cwd}\\.venv\\scripts\\python.exe",
+            "args": [
+                "setup.py",
+                "clean",
+                "--all"
+            ],
+            "problemMatcher": [
+                "$python"
+            ]
+        },
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "${cwd}\\.venv\\scripts\\python.exe",
+            "args": [
+                "setup.py",
+                "build"
+            ],
+            "problemMatcher": [
+                "$python"
+            ]
+        },
+        {
+            "label": "install",
+            "type": "shell",
+            "command": "${cwd}\\.venv\\scripts\\pip.exe",
+            "args": [
+                // "-m",
+                // "pip",
+                "install",
+                // "--reinstall",
+                "-e",
+                // "${cwd}"
+                ".",
+            ]
+        },
+        {
+            "label": "setup-environment",
+            "dependsOn": [
+                "clean-venv",
+                "create-venv",
+                "install-requirements"
+            ],
+            "dependsOrder": "sequence",
+            "presentation": {
+                "echo": true,
+                "panel": "shared",
+                "focus": true
+            },
+            "problemMatcher": [
+                "$python"
+            ]
+        },
+        {
+            "label": "clean-rebuild-install",
+            "dependsOn": [
+                "activate-venv",
+                "clean",
+                "build",
+                "install"
+            ],
+            "dependsOrder": "sequence",
+            "presentation": {
+                "echo": true,
+                "panel": "shared",
+                "focus": true
+            },
+            "problemMatcher": [
+                "$python"
+            ]
+        }
+    ]
+}

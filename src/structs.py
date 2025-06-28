@@ -1,5 +1,5 @@
 import datetime as dt
-import src.enums as enums
+from . import enums
 from pathlib import Path
 
 
@@ -20,7 +20,7 @@ class JobParameters:
         priority: enums.JobPriority,
         max_threads: int,
         init_time: dt.datetime | None = None,
-    ):
+    ) -> None:
         self.name = name
         self.priority = priority
         self.max_threads = max_threads
@@ -30,3 +30,11 @@ class JobParameters:
 class JobResult:
     return_code: enums.JobReturnCode
     artifacts: list[Artifact]
+
+    def __init__(
+        self,
+        return_code: enums.JobReturnCode,
+        artifacts: list[Artifact],
+    ) -> None:
+        self.return_code = return_code
+        self.artifacts = artifacts

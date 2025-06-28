@@ -4,57 +4,17 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        
         {
-            "name": "[CLI] Load file (copy codecs)",
-            "type": "debugpy",
+            "name": "Clean, Build & Install Package",
+            "type": "python",
             "request": "launch",
-            "program": "encoder_cli.py",
+            "program": "${workspaceFolder}/setup.py",
             "args": [
-                "encode-file",
-                "--acodec",
-                "copy",
-                "--vcodec",
-                "libx265",
-                "--add-stereo-channel",
-                "--max-threads",
-                "3",
-                "--preset",
-                "veryslow",
-                "--log-level",
-                "debug",
-                "H:/Git/media-processing/assets/good_media_files/Common Side Effects - s01e01 - Pilot.mkv",
-                "output"
+                "install"
             ],
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "justMyCode": true
-        },
-        {
-            "name": "[CLI] Load directory (copy codecs)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "encoder_cli.py",
-            "args": [
-                "encode-files",
-                "--acodec",
-                "copy",
-                "--vcodec",
-                "copy",
-                "--preset",
-                "slower",
-                "--add-stereo-channel",
-                "--max-threads",
-                "3",
-                "--max-concurrent",
-                "4",
-                "--log-level",
-                "debug",
-                "H:/Git/media-processing/assets/good_media_files",
-                "output"
-            ],
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "justMyCode": true
+            "preLaunchTask": "clean-rebuild-install"
         }
     ]
 }
