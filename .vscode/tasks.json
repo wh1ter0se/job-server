@@ -94,35 +94,87 @@
         //     ]
         // },
         {
-            "label": "setup-environment",
+            "label": "Clean Environment",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile",
                 "-Command",
-                "if (Test-Path .venv) { Remove-Item -Recurse -Force .venv }; python -m venv .venv; ${cwd}\\.venv\\scripts\\python.exe -m pip install --upgrade pip; ${cwd}\\.venv\\scripts\\python.exe -m pip install -r requirements.txt"
+                "if (Test-Path .venv) { Remove-Item -Recurse -Force .venv };",
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Setup Environment",
+            "dependsOn": "Clean Environment",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "python -m venv .venv; ",
+                "${cwd}\\.venv\\scripts\\python.exe -m pip install --upgrade pip;",
+                "${cwd}\\.venv\\scripts\\python.exe -m pip install -r requirements.txt",
+                "${cwd}\\.venv\\scripts\\python.exe -m pip freeze",
             ],
             "problemMatcher": [
                 "$python"
             ]
         },
         {
-            "label": "clean-rebuild-install",
-            "dependsOn": [
-                "activate-venv",
-                "clean",
-                "build",
-                "install"
+            "label": "Clean Package",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "if (Test-Path .build) { Remove-Item -Recurse -Force .build };",
+                "if (Test-Path .dist) { Remove-Item -Recurse -Force .dist };",
+                "if (Test-Path jobserver.egg-info) { Remove-Item -Recurse -Force jobserver.egg-info };",
             ],
-            "dependsOrder": "sequence",
-            "presentation": {
-                "echo": true,
-                "panel": "shared",
-                "focus": true
-            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Rebuild & Install Package",
+            "dependsOn": "Clean Package",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "${cwd}\\.venv\\scripts\\python.exe -m venv --activate .venv; ",
+                "${cwd}\\.venv\\scripts\\python.exe setup.py clean --all;",
+                "${cwd}\\.venv\\scripts\\python.exe setup.py build;",
+                "${cwd}\\.venv\\scripts\\python.exe -m pip install --reinstall .",
+            ],
             "problemMatcher": [
                 "$python"
             ]
+        },
+        {
+            "label": "Clean All",
+            "dependsOn": [
+                "Clean Package",
+                "Clean Environment"
+            ]
         }
+        // {
+        //     "label": "clean-rebuild-install",
+        //     "dependsOn": [
+        //         "activate-venv",
+        //         "clean",
+        //         "build",
+        //         "install"
+        //     ],
+        //     "dependsOrder": "sequence",
+        //     "presentation": {
+        //         "echo": true,
+        //         "panel": "shared",
+        //         "focus": true
+        //     },
+        //     "problemMatcher": [
+        //         "$python"
+        //     ]
+        // }
     ]
 }

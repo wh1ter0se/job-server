@@ -1,4 +1,4 @@
-import jobserver
+import jobserver.core as core
 
 # import jobserver.data as data
 
