@@ -1,3 +1,4 @@
+import os
 import json
 import sqlite3
 import datetime as dt
@@ -8,31 +9,69 @@ from . import enums
 
 class ConfigClient:
 
+    config_file_path: Path
+    create_new_if_missing: bool
+    fill_missing_keys_with_defualts: bool
+
     _config: dict
 
     def __init__(
         self,
-        config_file: Path = Path(".internal/config.json"),
+        config_file_path: Path = Path(os.getcwd()).joinpath(Path(".internal/config.json")),
+        create_new_if_missing: bool = True,
+        fill_missing_keys_with_defualts: bool = True,
     ):
-        self.config_file = config_file
+        self.config_file_path = config_file_path
+        self.create_new_if_missing = create_new_if_missing
+        self.fill_missing_keys_with_defualts = fill_missing_keys_with_defualts
+
         self._load_config()
+
+    def _load_default_config(self) -> dict[str, Any]:
+        # TODO: figure out how to unload default config from python package assets
+        raise NotImplementedError
 
     def _load_config(self) -> None:
         """Load configuration from the specified JSON file."""
-        try:
-            with open(self.config_file, "r") as file:
-                self._config = json.load(file)
-        except Exception as e:
-            print(f"Error loading config file {self.config_file}: {e}")
-            raise e
+        # Load the existing config file
+        if self.config_file_path.exists():
+            try:
+                with open(self.config_file_path, "r") as file:
+                    self._config = json.load(file)
+                self._validate_config()
+
+            except Exception as e:
+                print(f"Error loading config file {self.config_file_path}: {e}")
+                raise e
+
+        # Create new file
+        elif self.create_new_if_missing:
+            # TODO: Copy default location to rpovide file path
+            raise NotImplementedError()
+
+    def _validate_config(self) -> None:
+        default_config = self._load_default_config()
+        for key in default_config.keys():
+            # Check if key is in config, proceed if it is
+            if key in self._config.keys():
+                continue
+
+            # Othewise, copy the missing key over (if selected)
+            elif self.fill_missing_keys_with_defualts:
+                self._config[key] = default_config[key]
+                self._save_config()
+
+            # Raise error if it's missing
+            else:
+                raise ValueError(f'Config file is missing a required key: "{key}"')
 
     def _save_config(self) -> None:
         """Save the current configuration to the specified JSON file."""
         try:
-            with open(self.config_file, "w") as file:
+            with open(self.config_file_path, "w") as file:
                 json.dump(self._config, file, indent=4)
         except Exception as e:
-            print(f"Error saving config file {self.config_file}: {e}")
+            print(f"Error saving config file {self.config_file_path}: {e}")
             raise e
 
     def get(self, key: str) -> Any:

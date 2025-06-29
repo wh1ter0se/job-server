@@ -98,21 +98,25 @@ class JobServer:
     database: data.DatabaseClient
 
     # Internal
-    _app: FastAPI
+    _router: APIRouter
+    _app: FastAPI | None
     _job_manager: JobManager
 
     def __init__(
         self,
         config: data.ConfigClient,
         database: data.DatabaseClient,
+        start_at_init: bool = True,
     ):
         self.config = config
         self.database = database
 
-        self._app = FastAPI()
+        self._router = self._get_router()
+        self._app = None
         self._job_manager = JobManager()
 
-        raise NotImplementedError
+        if start_at_init:
+            self.start()
 
     def _get_router(self) -> APIRouter:
         router = APIRouter()
@@ -138,6 +142,10 @@ class JobServer:
         router.add_api_route("/subscribe_to_job/{job_id}", self.subscribe_to_job, methods=["GET"])
 
         return router
+
+    def start(self):
+        self._app = FastAPI()
+        self._app.include_router(self._router)
 
     # region Public API
     async def get_connection(
@@ -251,4 +259,5 @@ class JobServer:
 
 
 class JobServerClient:
+
     pass

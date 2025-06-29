@@ -1,5 +1,6 @@
 # import jobserver
 import jobserver as jserv
+from fastapi.testclient import TestClient
 
 
 # Setup clients
@@ -62,4 +63,12 @@ class HelloWorldJob(jserv.Job):
 
 
 # Start up the job server
-job_server = jserv.JobServer(config, database)
+job_server = jserv.JobServer(
+    config=config,
+    database=database,
+    start_at_init=True,
+)
+
+# Start up the client
+
+client = TestClient(job_server._app)

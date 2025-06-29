@@ -9,19 +9,20 @@ description = "A simple server to manage execution and artifacts of jobs."
 readme = "README.md"
 requires-python = ">=3.12"
 # license = { file = "LICENSE" }
-authors = [
-  { name = "wh1ter0se", email = "camelCaseEverything@gmail.com" }
-]
+authors = [{ name = "wh1ter0se", email = "camelCaseEverything@gmail.com" }]
 keywords = ["job server", "scheduler", "python"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python :: 3.12",
-  "Operating System :: OS Independent"
+  "Programming Language :: Python :: 3.13",
+  "Operating System :: OS Independent",
 ]
-dependencies = ["fastapi==0.115.*"]  # Add your runtime dependencies here, e.g. ["fastapi>=0.70.0"]
+dependencies = [
+  "fastapi==0.115.*",
+] # Add your runtime dependencies here, e.g. ["fastapi>=0.70.0"]
 
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pytest-asyncio", "requests", "types-requests"]
+test = ["pytest>=6.0", "pytest-asyncio", "requests", "types-requests", "httpx"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -32,8 +33,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 "jobserver" = [
-  "py.typed",           # the marker file
-  "*.pyi",              # any top-level stubs
-  "internal/*.pyi",     # internal stubs
-  "stubs/**/*.pyi"      # if using a stubs/ subfolder
+  "py.typed",       # the marker file
+  "stubs/**/*.pyi", # stubs
+  "assets/**/*",    # assets
 ]

@@ -1,4 +1,6 @@
 {
     "config_path": ".internal/config.json",
-    "database_path": ".internal/jobserver.sqlite"
+    "database_path": ".internal/jobserver.sqlite",
+    "readonly_allowed_paths": [],
+    "writeable_allowed_paths": []
 }
