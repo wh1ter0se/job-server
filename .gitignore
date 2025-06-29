@@ -195,3 +195,6 @@ cython_debug/
 
 # Internal project files
 .internal/*
+
+# Generated Stubs
+src/jobserver/stubs/*

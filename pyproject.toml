@@ -21,7 +21,7 @@ classifiers = [
 dependencies = ["fastapi==0.115.*"]  # Add your runtime dependencies here, e.g. ["fastapi>=0.70.0"]
 
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pytest-asyncio"]
+test = ["pytest>=6.0", "pytest-asyncio", "requests", "types-requests"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -36,10 +36,4 @@ include-package-data = true
   "*.pyi",              # any top-level stubs
   "internal/*.pyi",     # internal stubs
   "stubs/**/*.pyi"      # if using a stubs/ subfolder
-]
-
-[project.optional-dependencies]
-dev = [
-  "requests",           # runtime
-  "types-requests",     # stub package from PyPI
 ]

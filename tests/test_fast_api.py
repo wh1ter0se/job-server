@@ -10,7 +10,13 @@ database = jserv.DatabaseClient(config)
 # Create example job
 class HelloWorldJob(jserv.Job):
     def __init__(self, job_parameters: jserv.structs.JobTemplate):
-        super().__init__(job_parameters)
+        super().__init__(
+            _template=self.Template,
+            _states=[
+                HelloWorldJob.State1_CreateFile,
+                HelloWorldJob.State2_ReadFile,
+            ],
+        )
         self.name = "HelloWorldJob"
 
     class Parameters(jserv.structs.JobParameters):

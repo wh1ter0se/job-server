@@ -22,7 +22,7 @@
                 "-Command",
                 "python -m venv .venv; ",
                 "${cwd}\\.venv\\Scripts\\python.exe -m pip install --upgrade pip;",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pip install --upgrade build setuptools wheel mypy stubgen;",
+                "${cwd}\\.venv\\Scripts\\python.exe -m pip install --upgrade --force-reinstall build setuptools wheel mypy;",
                 "${cwd}\\.venv\\Scripts\\python.exe -m pip --version;",
                 "${cwd}\\.venv\\Scripts\\python.exe -m pip freeze;",
             ],
@@ -50,7 +50,7 @@
                 "-NoProfile",
                 "-Command",
                 "if (Test-Path src/jobserver/stubs) { Remove-Item -Recurse -Force src/jobserver/stubs };",
-                "${cwd}\\.venv\\Scripts\\python.exe -m mypy.stubgen --no-import -o src/jobserver/stubs src/joberserver 2>&1;"
+                "${cwd}\\.venv\\Scripts\\stubgen.exe --no-import -o src/jobserver/stubs src/jobserver 2>&1;"
             ],
             "presentation": { "reveal": "always" },
             "problemMatcher": [
