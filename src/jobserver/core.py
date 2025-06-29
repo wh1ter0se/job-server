@@ -7,17 +7,6 @@ from fastapi import FastAPI, APIRouter
 from . import data
 
 
-def get_hmm():
-    """Get a thought."""
-    return "hmmm..."
-
-
-def hmm():
-    """Contemplation..."""
-    if utils.get_answer():
-        print(get_hmm())
-
-
 class Job:
     class State:
         name: str

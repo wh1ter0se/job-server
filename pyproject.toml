@@ -1,3 +1,31 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=64.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobserver"
+version = "0.0.1"
+description = "A simple server to manage execution and artifacts of jobs."
+readme = "README.md"
+requires-python = ">=3.12"
+# license = { file = "LICENSE" }
+authors = [
+  { name = "wh1ter0se", email = "camelCaseEverything@gmail.com" }
+]
+keywords = ["job server", "scheduler", "python"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent"
+]
+dependencies = ["fastapi==0.115.*"]  # Add your runtime dependencies here, e.g. ["fastapi>=0.70.0"]
+
+[project.optional-dependencies]
+test = ["pytest>=6.0", "pytest-asyncio"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["jobserver*"]
+
+[tool.setuptools]
+include-package-data = true

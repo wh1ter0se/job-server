@@ -1,4 +1,0 @@
-{
-    "config_path": "/.internal/config.json",
-    "database_path": "/.internal/jobserver.sqlite"
-}

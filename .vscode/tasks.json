@@ -1,98 +1,6 @@
 {
     "version": "2.0.0",
     "tasks": [
-        // {
-        //     "label": "clean-venv",
-        //     "type": "shell",
-        //     "command": "python",
-        //     "args": [
-        //         "-m",
-        //         "venv",
-        //         "--clear",
-        //         ".venv"
-        //     ],
-        //     "problemMatcher": [
-        //         "$python"
-        //     ]
-        // },
-        // {
-        //     "label": "create-venv",
-        //     "type": "shell",
-        //     "command": "python",
-        //     "args": [
-        //         "-m",
-        //         "venv",
-        //         ".venv"
-        //     ],
-        //     "problemMatcher": [
-        //         "$python"
-        //     ]
-        // },
-        // {
-        //     "label": "install-requirements",
-        //     "type": "shell",
-        //     "command": "${cwd}\\.venv\\scripts\\python.exe",
-        //     "args": [
-        //         "-m",
-        //         "pip",
-        //         "install",
-        //         "--upgrade",
-        //         "-r",
-        //         "requirements.txt"
-        //     ],
-        //     "problemMatcher": [
-        //         "$python"
-        //     ]
-        // },
-        // {
-        //     "label": "active-venv",
-        //     "type": "shell",
-        //     "command": "python",
-        //     "args": [
-        //         "-m",
-        //         "venv",
-        //         "--activate",
-        //         ".venv"
-        //     ],
-        //     "problemMatcher": [
-        //         "$python"
-        //     ]
-        // },
-        // {
-        //     "label": "clean",
-        //     "type": "shell",
-        //     "command": "${cwd}\\.venv\\scripts\\python.exe",
-        //     "args": [
-        //         "setup.py",
-        //         "clean",
-        //         "--all"
-        //     ],
-        //     "problemMatcher": [
-        //         "$python"
-        //     ]
-        // },
-        // {
-        //     "label": "build",
-        //     "type": "shell",
-        //     "command": "${cwd}\\.venv\\scripts\\python.exe",
-        //     "args": [
-        //         "setup.py",
-        //         "build"
-        //     ],
-        //     "problemMatcher": [
-        //         "$python"
-        //     ]
-        // },
-        // {
-        //     "label": "install",
-        //     "type": "shell",
-        //     "command": "${cwd}\\.venv\\scripts\\pip.exe",
-        //     "args": [
-        //         "install",
-        //         "-e",
-        //         "."
-        //     ]
-        // },
         {
             "label": "Clean Environment",
             "type": "shell",
@@ -113,9 +21,10 @@
                 "-NoProfile",
                 "-Command",
                 "python -m venv .venv; ",
-                "${cwd}\\.venv\\scripts\\python.exe -m pip install --upgrade pip;",
-                "${cwd}\\.venv\\scripts\\python.exe -m pip install -r requirements.txt",
-                "${cwd}\\.venv\\scripts\\python.exe -m pip freeze",
+                "${cwd}\\.venv\\Scripts\\python.exe -m pip install --upgrade pip;",
+                "${cwd}\\.venv\\Scripts\\python.exe -m pip install --upgrade build;",
+                "${cwd}\\.venv\\Scripts\\python.exe -m pip --version;",
+                "${cwd}\\.venv\\Scripts\\python.exe -m pip freeze;",
             ],
             "problemMatcher": [
                 "$python"
@@ -128,9 +37,8 @@
             "args": [
                 "-NoProfile",
                 "-Command",
-                "if (Test-Path .build) { Remove-Item -Recurse -Force .build };",
+                "if (Test-Path build) { Remove-Item -Recurse -Force build };",
                 "if (Test-Path .dist) { Remove-Item -Recurse -Force .dist };",
-                "if (Test-Path jobserver.egg-info) { Remove-Item -Recurse -Force jobserver.egg-info };",
             ],
             "problemMatcher": []
         },
@@ -142,10 +50,9 @@
             "args": [
                 "-NoProfile",
                 "-Command",
-                "${cwd}\\.venv\\scripts\\python.exe -m venv --activate .venv; ",
-                "${cwd}\\.venv\\scripts\\python.exe setup.py clean --all;",
-                "${cwd}\\.venv\\scripts\\python.exe setup.py build;",
-                "${cwd}\\.venv\\scripts\\python.exe -m pip install --reinstall .",
+                "${cwd}\\.venv\\Scripts\\python.exe -m build --sdist --wheel;",
+                "$wheel = Get-ChildItem -Path 'dist\\*.whl' | Select-Object -Last 1 -ExpandProperty FullName;",
+                "${cwd}\\.venv\\Scripts\\python.exe -m pip install --force-reinstall $wheel;",
             ],
             "problemMatcher": [
                 "$python"
@@ -157,24 +64,19 @@
                 "Clean Package",
                 "Clean Environment"
             ]
+        },
+        {
+            "label": "Run Tests",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "${cwd}\\.venv\\Scripts\\python.exe -m pytest test "
+            ],
+            "problemMatcher": [
+                "$python"
+            ]
         }
-        // {
-        //     "label": "clean-rebuild-install",
-        //     "dependsOn": [
-        //         "activate-venv",
-        //         "clean",
-        //         "build",
-        //         "install"
-        //     ],
-        //     "dependsOrder": "sequence",
-        //     "presentation": {
-        //         "echo": true,
-        //         "panel": "shared",
-        //         "focus": true
-        //     },
-        //     "problemMatcher": [
-        //         "$python"
-        //     ]
-        // }
     ]
 }

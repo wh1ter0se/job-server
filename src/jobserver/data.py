@@ -12,7 +12,7 @@ class ConfigClient:
 
     def __init__(
         self,
-        config_file: Path = Path("/.internal/config.json"),
+        config_file: Path = Path(".internal/config.json"),
     ):
         self.config_file = config_file
         self._load_config()
