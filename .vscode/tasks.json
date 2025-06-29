@@ -2,77 +2,36 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "launch debugpy server",
-            "dependsOn": "Rebuild & Install Package",
-            "type": "shell",
-            "isBackground": true,
-            "command": "${workspaceFolder}\\.venv\\Scripts\\debugpy.exe",
-            "args": [
-                "--listen",
-                "127.0.0.1:5678",
-                "--wait-for-client",
-                "${file}"
-            ],
-            // "presentation": {
-            //  "showReuseMessage": false,
-            //     // "clear": true,
-            //     "panel": "shared"
-            // },
-            "problemMatcher": [
-                {
-                    "pattern": [
-                        {
-                            "regexp": ".",
-                            "file": 1,
-                            "location": 2,
-                            "message": 3
-                        }
-                    ],
-                    "background": {
-                        "activeOnStart": true,
-                        "beginsPattern": ".",
-                        "endsPattern": ".",
-                    }
-                }
-            ]
-        },
-        {
             "label": "Clean Environment",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile",
                 "-Command",
-                "if (Test-Path .venv) { Remove-Item -Recurse -Force .venv };"
+                "scripts/clean-environment.ps1;"
             ],
             "problemMatcher": [],
             "presentation": {
                 "showReuseMessage": false,
-                // "clear": true,
+                "clear": true,
                 "panel": "shared"
             },
         },
         {
             "label": "Setup Environment",
-            "dependsOn": "Clean Environment",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile",
                 "-Command",
-                "python -m venv .venv; ",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pip install --upgrade pip;",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pip install --upgrade --force-reinstall build setuptools wheel mypy debugpy .[test];",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pip install --upgrade --force-reinstall .[test];",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pip --version;",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pip freeze;"
+                "scripts/setup-environment.ps1;"
             ],
             "problemMatcher": [
                 "$python"
             ],
             "presentation": {
                 "showReuseMessage": false,
-                // "clear": true,
+                "clear": true,
                 "panel": "shared"
             },
         },
@@ -83,13 +42,12 @@
             "args": [
                 "-NoProfile",
                 "-Command",
-                "if (Test-Path build) { Remove-Item -Recurse -Force build };",
-                "if (Test-Path .dist) { Remove-Item -Recurse -Force .dist };"
+                "scripts/clean-package.ps1;"
             ],
             "problemMatcher": [],
             "presentation": {
                 "showReuseMessage": false,
-                // "clear": true,
+                "clear": true,
                 "panel": "shared"
             },
         },
@@ -100,34 +58,25 @@
             "args": [
                 "-NoProfile",
                 "-Command",
-                "if (Test-Path src/jobserver/stubs) { Remove-Item -Recurse -Force src/jobserver/stubs };",
-                "${cwd}\\.venv\\Scripts\\stubgen.exe --no-import -o src/jobserver/stubs src/jobserver 2>&1;"
+                "scripts/generate-stubs.ps1;"
             ],
             "problemMatcher": [
                 "$python"
             ],
             "presentation": {
                 "showReuseMessage": false,
-                // "clear": true,
+                "clear": true,
                 "panel": "shared"
             },
         },
         {
             "label": "Rebuild & Install Package",
-            "dependsOn": [
-                "Clean Package",
-                "Generate Stubs"
-            ],
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile",
                 "-Command",
-                "${cwd}\\.venv\\Scripts\\python.exe -m build --sdist --wheel;",
-                "$wheel = Get-ChildItem -Path 'dist\\*.whl' | Select-Object -Last 1 -ExpandProperty FullName;",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pip install --force-reinstall $wheel;",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pip --version;",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pip freeze;"
+                "scripts/rebuild-install-package.ps1;"
             ],
             "problemMatcher": [
                 "$python"
@@ -144,10 +93,19 @@
         },
         {
             "label": "Clean All",
-            "dependsOn": [
-                "Clean Package",
-                "Clean Environment"
-            ]
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "scripts/clean-all.ps1;"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "showReuseMessage": false,
+                "clear": true,
+                "panel": "shared"
+            },
         },
         {
             "label": "Run Tests",
@@ -156,24 +114,26 @@
             "args": [
                 "-NoProfile",
                 "-Command",
-                "${cwd}\\.venv\\Scripts\\python.exe -m pytest test "
+                "scripts/run-tests.ps1;"
             ],
             "problemMatcher": [
                 "$python"
             ],
             "presentation": {
                 "showReuseMessage": false,
-                // "clear": true,
+                "clear": true,
                 "panel": "shared"
             },
         },
         {
             "label": "Rebuild All",
-            "dependsOn": [
-                "Setup Environment",
-                "Rebuild & Install Package"
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "scripts/rebuild-all.ps1;"
             ],
-            "dependsOrder": "sequence",
             "problemMatcher": [
                 "$python"
             ],
