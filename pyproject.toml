@@ -29,3 +29,17 @@ include = ["jobserver*"]
 
 [tool.setuptools]
 include-package-data = true
+
+[tool.setuptools.package-data]
+"jobserver" = [
+  "py.typed",           # the marker file
+  "*.pyi",              # any top-level stubs
+  "internal/*.pyi",     # internal stubs
+  "stubs/**/*.pyi"      # if using a stubs/ subfolder
+]
+
+[project.optional-dependencies]
+dev = [
+  "requests",           # runtime
+  "types-requests",     # stub package from PyPI
+]

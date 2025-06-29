@@ -44,6 +44,14 @@ class JobReturnCode(Enum):
     KILLED = "Killed"
 
 
+class JobUpdateType(Enum):
+    UNKNOWN = 0
+    STATE_CHANGE = 1
+    WARNING = 2
+    ERROR = 3
+    WEBHOOK_OPENED = 4
+
+
 class ServerUpdateType(Enum):
     UNKNOWN = 0
     DATABASE = 1
