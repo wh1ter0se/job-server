@@ -7,7 +7,7 @@ name = "jobserver"
 version = "0.0.1"
 description = "A simple server to manage execution and artifacts of jobs."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 # license = { file = "LICENSE" }
 authors = [{ name = "wh1ter0se", email = "camelCaseEverything@gmail.com" }]
 keywords = ["job server", "scheduler", "python"]
