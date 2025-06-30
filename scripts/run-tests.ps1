@@ -5,6 +5,6 @@ Set-Location $workspaceRoot
 echo "[TASK] Running tests..."
 
 # Run pytest on the test directory
-& $pythonExe -m pytest test
+& $pythonExe -m pytest tests
 
 echo "[TASK] Finished running tests."
