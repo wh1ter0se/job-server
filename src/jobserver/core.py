@@ -98,6 +98,8 @@ class JobServer:
     database: data.DatabaseClient
 
     # Internal
+    _init_time: dt.datetime
+    _allowed_jobs: list[type[Job]]
     _router: APIRouter
     _app: FastAPI | None
     _job_manager: JobManager
@@ -106,11 +108,14 @@ class JobServer:
         self,
         config: data.ConfigClient,
         database: data.DatabaseClient,
+        allowed_jobs: list[type[Job]],
         start_at_init: bool = True,
     ):
         self.config = config
         self.database = database
+        self._allowed_jobs = allowed_jobs
 
+        self._init_time = dt.datetime.now()
         self._router = self._get_router()
         self._app = None
         self._job_manager = JobManager()
@@ -129,16 +134,24 @@ class JobServer:
         router.add_api_route("/get_error/{error_id}", self.get_error, methods=["GET"])
         router.add_api_route("/get_errors/", self.get_errors, methods=["GET"])
 
+        # Job Templates
+        router.add_api_route("/get_job_template/{name}", self.get_job_templates, methods=["GET"])
+        router.add_api_route("/get_job_templates/", self.get_job_templates, methods=["GET"])
+
         # Job/Server Updates
         router.add_api_route("/get_job_updates", self.get_job_updates, methods=["GET"])
         router.add_api_route("/get_server_updates", self.get_server_updates, methods=["GET"])
 
+        # Job/Server Status
+        router.add_api_route("/get_active_jobs/", self.get_active_jobs, methods=["GET"])
+        router.add_api_route("/get_job_status/{job_id}", self.get_job_status, methods=["GET"])
+        router.add_api_route("/get_server_status/", self.get_server_status, methods=["GET"])
+
         # Job Control
-        router.add_api_route("/start_job/", self.start_job, methods=["POST"])
+        router.add_api_route("/start_job/{job_id}", self.start_job, methods=["POST"])
         router.add_api_route("/pause_job/{job_id}", self.pause_job, methods=["POST"])
         router.add_api_route("/resume_job/{job_id}", self.resume_job, methods=["POST"])
         router.add_api_route("/cancel_job/{job_id}", self.cancel_job, methods=["POST"])
-        router.add_api_route("/get_job_status/{job_id}", self.get_job_status, methods=["GET"])
         router.add_api_route("/subscribe_to_job/{job_id}", self.subscribe_to_job, methods=["GET"])
 
         return router
@@ -185,13 +198,20 @@ class JobServer:
     ) -> dict:
         raise NotImplementedError
 
-    async def get_job_templat(
+    async def get_job_template(
         self,
         name: str,
     ) -> dict:
         raise NotImplementedError
 
     async def get_job_templates(
+        self,
+        items_per_page: int = 25,
+        page: int = 1,
+    ) -> dict:
+        raise NotImplementedError
+
+    async def get_active_jobs(
         self,
         items_per_page: int = 25,
         page: int = 1,
@@ -219,6 +239,19 @@ class JobServer:
     ) -> dict:
         raise NotImplementedError
 
+    async def get_job_status(
+        self,
+        job_id: str,
+    ) -> dict:
+        raise NotImplementedError
+
+    async def get_server_status(
+        self,
+    ) -> dict:
+        return {
+            "init_time": self._init_time.isoformat(),
+        }
+
     async def start_job(
         self,
         job_parameters: dict,
@@ -238,12 +271,6 @@ class JobServer:
         raise NotImplementedError
 
     async def cancel_job(
-        self,
-        job_id: str,
-    ) -> dict:
-        raise NotImplementedError
-
-    async def get_job_status(
         self,
         job_id: str,
     ) -> dict:

@@ -1,24 +1,16 @@
-# import jobserver
 import jobserver as jserv
-from fastapi.testclient import TestClient
 
 
-# Setup clients
-config = jserv.ConfigClient()
-database = jserv.DatabaseClient(config)
-
-
-# Create example job
-class HelloWorldJob(jserv.Job):
+class FileWriteReadJob(jserv.Job):
     def __init__(self, job_parameters: jserv.structs.JobTemplate):
         super().__init__(
             _template=self.Template,
             _states=[
-                HelloWorldJob.State1_CreateFile,
-                HelloWorldJob.State2_ReadFile,
+                FileWriteReadJob.State1_WriteFile,
+                FileWriteReadJob.State2_ReadFile,
             ],
         )
-        self.name = "HelloWorldJob"
+        self.name = "FileWriteReadJob"
 
     class Parameters(jserv.structs.JobParameters):
         excited: bool
@@ -31,7 +23,7 @@ class HelloWorldJob(jserv.Job):
         ):
             self.excited = excited
             super().__init__(
-                name="HelloWorldJob",
+                name="FileWriteReadJob",
                 priority=priority,
                 max_threads=max_threads,
             )
@@ -42,10 +34,10 @@ class HelloWorldJob(jserv.Job):
                 name=name,
                 description=description,
                 args=args,
-                parameter_class=HelloWorldJob.Parameters,
+                parameter_class=FileWriteReadJob.Parameters,
             )
 
-    class State1_CreateFile(jserv.Job.State):
+    class State1_WriteFile(jserv.Job.State):
         def start(self) -> bool:
             # Simulate file creation
             print("Creating file...")
@@ -60,15 +52,3 @@ class HelloWorldJob(jserv.Job):
                 content = f.read()
             print(f"File content: {content}")
             return True
-
-
-# Start up the job server
-job_server = jserv.JobServer(
-    config=config,
-    database=database,
-    start_at_init=True,
-)
-
-# Start up the client
-
-client = TestClient(job_server._app)

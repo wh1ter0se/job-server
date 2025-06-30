@@ -19,10 +19,16 @@ classifiers = [
 ]
 dependencies = [
   "fastapi==0.115.*",
-] # Add your runtime dependencies here, e.g. ["fastapi>=0.70.0"]
+]
 
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pytest-asyncio", "requests", "types-requests", "httpx"]
+test = [
+  "pytest==8.4.*",
+  "pytest-asyncio==1.0.*",
+  "requests==2.32.*",
+  "types-requests==2.32.4.*",
+  "httpx==0.28.1",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -33,7 +39,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 "jobserver" = [
-  "py.typed",       # the marker file
+  "py.typed",       # type hinting marker file
   "stubs/**/*.pyi", # stubs
   "assets/**/*",    # assets
 ]

@@ -2,6 +2,7 @@ import os
 import json
 import sqlite3
 import datetime as dt
+import importlib.resources
 from pathlib import Path
 from typing import Any
 from . import enums
@@ -28,8 +29,15 @@ class ConfigClient:
         self._load_config()
 
     def _load_default_config(self) -> dict[str, Any]:
-        # TODO: figure out how to unload default config from python package assets
-        raise NotImplementedError
+        # Load the default config from the package assets
+        default_config_file_path = Path(
+            str(importlib.resources.files(__package__).joinpath("assets/default_config.json"))
+        )
+
+        # Read and return the default config contents
+        with open(default_config_file_path, "r") as default_file:
+            default_config: dict = json.load(default_file)
+            return default_config
 
     def _load_config(self) -> None:
         """Load configuration from the specified JSON file."""
