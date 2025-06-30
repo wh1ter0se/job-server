@@ -8,6 +8,13 @@ from pathlib import Path
 from typing import Any
 from . import enums
 
+DEFAULT_CONFIG_FILE_PATH = Path(
+    str(importlib.resources.files(__package__).joinpath("assets/default_config.json"))
+)
+DATABASE_TEMPLATE_FILE_PATH = Path(
+    str(importlib.resources.files(__package__).joinpath("assets/jobserver.temp.sqlite3"))
+)
+
 
 class ConfigClient:
 
@@ -30,13 +37,8 @@ class ConfigClient:
         self._load_config()
 
     def _load_default_config(self) -> dict[str, Any]:
-        # Load the default config from the package assets
-        default_config_file_path = Path(
-            str(importlib.resources.files(__package__).joinpath("assets/default_config.json"))
-        )
-
         # Read and return the default config contents
-        with open(default_config_file_path, "r") as default_file:
+        with open(DEFAULT_CONFIG_FILE_PATH, "r") as default_file:
             default_config: dict = json.load(default_file)
             return default_config
 
@@ -56,6 +58,7 @@ class ConfigClient:
         # Create new file
         elif self.create_new_if_missing:
             # TODO: Copy default location to rpovide file path
+            os.makedirs(self.config_file_path.parent, exist_ok=True)
             shutil.copyfile(
                 src=Path(
                     str(
