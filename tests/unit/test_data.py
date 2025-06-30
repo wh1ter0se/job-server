@@ -42,37 +42,81 @@ def config_client(tmp_dir: Path) -> Generator[jserv.ConfigClient, None, None]:
 # endregion Config
 
 
+# region Database
 def test_database_client_can_load(config_client: jserv.ConfigClient) -> None:
     database = jserv.DatabaseClient(config=config_client)
     assert database
 
 
 @pytest.fixture()
-def database_client(config_client: jserv.ConfigClient) -> jserv.DatabaseClient:
+def database_client(
+    config_client: jserv.ConfigClient,
+) -> Generator[jserv.DatabaseClient, None, None]:
     database = jserv.DatabaseClient(config=config_client)
-    return database
+    yield database
+    database.disconnect()
 
 
-def test_config_insert_select_connection(database_client: jserv.DatabaseClient):
-    client_token = "test_token"
-    init_time = dt.datetime.now()
-    last_message_time = None
-    num_messages = 0
-    client_ip = "1.2.3.4"
+# endregion Databasee
 
+
+# region Database - Connectiopn
+@pytest.fixture
+def connection_entry() -> jserv.DatabaseEntry.Connection:
+    connection_entry = jserv.DatabaseEntry.Connection()
+    connection_entry.client_token = str(hash(dt.datetime.now()))
+    connection_entry.init_time = dt.datetime.now()
+    connection_entry.last_message_time = None
+    connection_entry.num_messages = 0
+    connection_entry.client_ip = "1.2.3.4"
+    return connection_entry
+
+
+def test_database_select_null_connection(database_client: jserv.DatabaseClient) -> None:
+    connection_entry = database_client.get_connection_entry(client_token="test_token")
+    assert connection_entry is None
+
+
+def test_database_insert_select_connection(
+    database_client: jserv.DatabaseClient,
+    connection_entry: jserv.DatabaseEntry.Connection,
+) -> None:
     database_client.set_connection_entry(
-        client_token=client_token,
-        init_time=init_time,
-        last_message_time=last_message_time,
-        num_messages=num_messages,
-        client_ip=client_ip,
+        connection_entry=connection_entry,
         set_method=jserv.enums.SQLSetMethod.INSERT,
     )
+    retrieved_connection_entry = database_client.get_connection_entry(
+        client_token=connection_entry.client_token
+    )
+    assert retrieved_connection_entry is not None
+    assert retrieved_connection_entry == connection_entry
 
-    connection_entry = database_client.get_connection_entry(client_token="test_token")
-    assert connection_entry is not None
-    assert connection_entry.client_token == client_token
-    assert connection_entry.init_time == init_time
-    assert connection_entry.last_message_time == last_message_time
-    assert connection_entry.num_messages == num_messages
-    assert connection_entry.client_ip == client_ip
+
+def test_database_insert_update_select_connection(
+    database_client: jserv.DatabaseClient,
+    connection_entry: jserv.DatabaseEntry.Connection,
+) -> None:
+    database_client.set_connection_entry(
+        connection_entry=connection_entry,
+        set_method=jserv.enums.SQLSetMethod.INSERT,
+    )
+    retrieved_connection_entry = database_client.get_connection_entry(
+        client_token=connection_entry.client_token
+    )
+    assert retrieved_connection_entry is not None
+    assert retrieved_connection_entry == connection_entry
+
+
+# def test_database_upsert_select_connection(
+#     database_client: jserv.DatabaseClient,
+#     connection_entry: jserv.DatabaseEntry.Connection,
+# ) -> None:
+#     raise NotImplementedError()
+
+# def test_database_insert_upsert_select_connection(
+#     database_client: jserv.DatabaseClient,
+#     connection_entry: jserv.DatabaseEntry.Connection,
+# ) -> None:
+#     raise NotImplementedError()
+
+# endregion Database - Connectiopn

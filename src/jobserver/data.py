@@ -121,6 +121,20 @@ class DatabaseEntry:
         num_messages: int
         client_ip: str
 
+        def __init__(
+            self,
+            client_token: str,
+            init_time: dt.datetime,
+            last_message_time: dt.datetime | None,
+            num_messages: int,
+            client_ip: str,
+        ) -> None:
+            self.client_token = client_token
+            self.init_time = init_time
+            self.last_message_time = last_message_time
+            self.num_messages = num_messages
+            self.client_ip = client_ip
+
     class Error:
         error_id: str  # Primary key
         error_time: dt.datetime
@@ -129,10 +143,49 @@ class DatabaseEntry:
         job_hash: str | None  # FK
         client_token: str | None  # FK
 
+        def __init__(
+            self,
+            error_id: str,
+            error_time: dt.datetime,
+            severity_level: enums.ErrorSeverity,
+            traceback: str,
+            job_hash: str | None,
+            client_token: str | None,
+        ) -> None:
+            self.error_id = error_id
+            self.error_time = error_time
+            self.severity_level = severity_level
+            self.traceback = traceback
+            self.job_hash = job_hash
+            self.client_token = client_token
+
+        def __eq__(self, value) -> bool:
+            return (
+                self.error_id == value.error_id
+                and self.error_time == value.error_time
+                and self.severity_level == value.severity_level
+                and self.traceback == value.traceback
+                and self.job_hash == value.job_hash
+                and self.client_token == value.client_token
+            )
+
     class JobStatus:
         job_id: str  # Primary key
         init_time: dt.datetime
         archived: bool
+
+        def __init__(
+            self,
+            job_id: str,
+            init_time: dt.datetime,
+            archived: bool,
+        ) -> None:
+            self.job_id = job_id
+            self.init_time = init_time
+            self.archived = archived
+
+        def __eq__(self, value) -> bool:
+            return self.job_id == value.job_id and self.init_time == value.init_time
 
     class JobUpdate:
         job_id: str  # Primary key
@@ -140,11 +193,51 @@ class DatabaseEntry:
         new_state: int
         comment: str
 
+        def __init__(
+            self,
+            job_id: str,
+            update_time: dt.datetime,
+            new_state: int,
+            comment: str,
+        ) -> None:
+            self.job_id = job_id
+            self.update_time = update_time
+            self.new_state = new_state
+            self.comment = comment
+
+        def __eq__(self, value) -> bool:
+            return (
+                self.job_id == value.job_id
+                and self.update_time == value.update_time
+                and self.new_state == value.new_state
+                and self.comment == value.comment
+            )
+
     class ServerUpdate:
         time: dt.datetime  # Primary key
         type: int
         subtype: int
         job_id: str | None  # FK
+
+        def __init__(
+            self,
+            time: dt.datetime,
+            type: int,
+            subtype: int,
+            job_id: str | None,
+        ) -> None:
+            self.time = time
+            self.type = type
+            self.subtype = subtype
+            self.job_id = job_id
+
+        def __eq__(self, value) -> bool:
+            return (
+                self.time == value.time
+                and self.type == value.type
+                and self.subtype == value.subtype
+                and self.job_id == value.job_id
+            )
 
 
 class DatabaseClient:
@@ -157,7 +250,7 @@ class DatabaseClient:
         self._connect()
 
     def __del__(self):
-        self._disconnect()
+        self.disconnect()
 
     # region Private
     def _connect(self) -> None:
@@ -173,7 +266,7 @@ class DatabaseClient:
             print(f"Error connecting to database: {e}")
             raise e
 
-    def _disconnect(self) -> None:
+    def disconnect(self) -> None:
         self._connection.close()
 
     # endregion Private
@@ -194,12 +287,13 @@ class DatabaseClient:
             return None
 
         # Create a DatabaseEntry.Connection object from the row
-        connection_entry = DatabaseEntry.Connection()
-        connection_entry.client_token = row[0]
-        connection_entry.init_time = dt.datetime.fromtimestamp(row[1])
-        connection_entry.last_message_time = dt.datetime.fromtimestamp(row[2]) if row[2] else None
-        connection_entry.num_messages = row[3]
-        connection_entry.client_ip = row[4]
+        connection_entry = DatabaseEntry.Connection(
+            client_token=row[0],
+            init_time=dt.datetime.fromtimestamp(row[1]),
+            last_message_time=(dt.datetime.fromtimestamp(row[2]) if row[2] else None),
+            num_messages=row[3],
+            client_ip=row[4],
+        )
 
         return connection_entry
 
@@ -230,14 +324,13 @@ class DatabaseClient:
         connection_entries = []
         for row in query_result.fetchall():
             # Create a DatabaseEntry.Connection object from the row
-            connection_entry = DatabaseEntry.Connection()
-            connection_entry.client_token = row[0]
-            connection_entry.init_time = dt.datetime.fromtimestamp(row[1])
-            connection_entry.last_message_time = (
-                dt.datetime.fromtimestamp(row[2]) if row[2] else None
+            connection_entry = DatabaseEntry.Connection(
+                client_token=row[0],
+                init_time=dt.datetime.fromtimestamp(row[1]),
+                last_message_time=(dt.datetime.fromtimestamp(row[2]) if row[2] else None),
+                num_messages=row[3],
+                client_ip=row[4],
             )
-            connection_entry.num_messages = row[3]
-            connection_entry.client_ip = row[4]
 
             connection_entries.append(connection_entry)
 
@@ -245,25 +338,25 @@ class DatabaseClient:
 
     def set_connection_entry(
         self,
-        client_token: str,
-        init_time: dt.datetime,
-        last_message_time: dt.datetime | None,
-        num_messages: int,
-        client_ip: str,
+        connection_entry: DatabaseEntry.Connection,
         set_method=enums.SQLSetMethod.INSERT,
     ) -> None:
-
+        cursor = self._connection.cursor()
         match set_method:
             case enums.SQLSetMethod.INSERT:
-                cursor = self._connection.cursor()
-                if last_message_time is None:
+                if connection_entry.last_message_time is None:
                     # If last_message_time is None, we don't include it in the insert statement
                     cursor.execute(
                         """
                         INSERT INTO Connection (client_token, init_time, num_messages, client_ip)
                         VALUES (?, ?, ?, ?)
                         """,
-                        (client_token, str(init_time.timestamp()), num_messages, client_ip),
+                        (
+                            connection_entry.client_token,
+                            connection_entry.init_time.timestamp(),
+                            connection_entry.num_messages,
+                            connection_entry.client_ip,
+                        ),
                     )
                 else:
                     # If last_message_time is provided, we include it in the insert statement
@@ -273,18 +366,35 @@ class DatabaseClient:
                         VALUES (?, ?, ?, ?, ?)
                         """,
                         (
-                            client_token,
-                            str(init_time.timestamp()),
-                            str(last_message_time.timestamp()),
-                            num_messages,
-                            client_ip,
+                            connection_entry.client_token,
+                            connection_entry.init_time.timestamp(),
+                            connection_entry.last_message_time.timestamp(),
+                            connection_entry.num_messages,
+                            connection_entry.client_ip,
                         ),
                     )
-                self._connection.commit()
             case enums.SQLSetMethod.UPDATE:
-                raise NotImplementedError
+                cursor.execute(
+                    f"""
+                    UPDATE Connection
+                    SET init_time = ?, last_message_time = ?, num_messages = ?, client_ip = ?
+                    WHERE client_token = ?
+                    """,
+                    (
+                        connection_entry.init_time.timestamp(),
+                        (
+                            connection_entry.last_message_time.timestamp()
+                            if connection_entry.last_message_time is not None
+                            else None
+                        ),
+                        connection_entry.num_messages,
+                        connection_entry.client_ip,
+                        connection_entry.client_token,
+                    ),
+                )
             case enums.SQLSetMethod.UPSERT:
                 raise NotImplementedError
+        self._connection.commit()
 
     # endregion Connection
 
