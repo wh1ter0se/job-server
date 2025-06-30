@@ -63,12 +63,13 @@ def database_client(
 # region Database - Connectiopn
 @pytest.fixture
 def connection_entry() -> jserv.DatabaseEntry.Connection:
-    connection_entry = jserv.DatabaseEntry.Connection()
-    connection_entry.client_token = str(hash(dt.datetime.now()))
-    connection_entry.init_time = dt.datetime.now()
-    connection_entry.last_message_time = None
-    connection_entry.num_messages = 0
-    connection_entry.client_ip = "1.2.3.4"
+    connection_entry = jserv.DatabaseEntry.Connection(
+        client_token=str(hash(dt.datetime.now())),
+        init_time=dt.datetime.now(),
+        last_message_time=None,
+        num_messages=0,
+        client_ip="1.2.3.4",
+    )
     return connection_entry
 
 
