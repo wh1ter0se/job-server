@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import sqlite3
 import datetime as dt
 import importlib.resources
@@ -55,6 +56,22 @@ class ConfigClient:
         # Create new file
         elif self.create_new_if_missing:
             # TODO: Copy default location to rpovide file path
+            shutil.copyfile(
+                src=Path(
+                    str(
+                        importlib.resources.files(__package__).joinpath(
+                            "assets/default_config.json"
+                        )
+                    )
+                ),
+                dst=self.config_file_path,
+            )
+            self._load_config()
+
+        else:
+            print(
+                f"Config file {self.config_file_path} not found, and create_new_if_missing is False"
+            )
             raise NotImplementedError()
 
     def _validate_config(self) -> None:
