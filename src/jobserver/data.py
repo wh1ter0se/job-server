@@ -135,6 +135,15 @@ class DatabaseEntry:
             self.num_messages = num_messages
             self.client_ip = client_ip
 
+        def __eq__(self, value) -> bool:
+            return (
+                self.client_token == value.client_token
+                and self.init_time == value.init_time
+                and self.last_message_time == value.last_message_time
+                and self.num_messages == value.num_messages
+                and self.client_ip == value.client_ip
+            )
+
     class Error:
         error_id: str  # Primary key
         error_time: dt.datetime
