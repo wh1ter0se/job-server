@@ -53,23 +53,26 @@ def database_client(config_client: jserv.ConfigClient) -> jserv.DatabaseClient:
     return database
 
 
-# def test_config_set_get_connection(database_client: jserv.DatabaseClient):
-#     client_token = "test_token"
-#     init_time = dt.datetime.now()
-#     last_message_time = None
-#     num_messages = 0
+def test_config_insert_select_connection(database_client: jserv.DatabaseClient):
+    client_token = "test_token"
+    init_time = dt.datetime.now()
+    last_message_time = None
+    num_messages = 0
+    client_ip = "1.2.3.4"
 
-#     database_client.set_connection_entry(
-#         client_token=client_token,
-#         init_time=init_time,
-#         last_message_time=last_message_time,
-#         num_messages=num_messages,
-#         set_method=jserv.enums.SQLSetMethod.INSERT,
-#     )
+    database_client.set_connection_entry(
+        client_token=client_token,
+        init_time=init_time,
+        last_message_time=last_message_time,
+        num_messages=num_messages,
+        client_ip=client_ip,
+        set_method=jserv.enums.SQLSetMethod.INSERT,
+    )
 
-#     connection_entry = database_client.get_connection_entry(client_token="test_token")
-#     assert connection_entry is not None
-#     assert connection_entry.client_token == client_token
-#     assert connection_entry.init_time == init_time
-#     assert connection_entry.last_message_time == last_message_time
-#     assert connection_entry.num_messages == num_messages
+    connection_entry = database_client.get_connection_entry(client_token="test_token")
+    assert connection_entry is not None
+    assert connection_entry.client_token == client_token
+    assert connection_entry.init_time == init_time
+    assert connection_entry.last_message_time == last_message_time
+    assert connection_entry.num_messages == num_messages
+    assert connection_entry.client_ip == client_ip

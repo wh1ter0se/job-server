@@ -119,6 +119,7 @@ class DatabaseEntry:
         init_time: dt.datetime
         last_message_time: dt.datetime | None
         num_messages: int
+        client_ip: str
 
     class Error:
         error_id: str  # Primary key
@@ -182,10 +183,65 @@ class DatabaseClient:
     # region   Connection
     def get_connection_entry(
         self,
-        client_token: str | None = None,
-        before: dt.datetime | None = None,
+        client_token: str,
     ) -> DatabaseEntry.Connection | None:
-        raise NotImplementedError
+        cursor = self._connection.cursor()
+        query_result = cursor.execute(
+            "SELECT * FROM Connection WHERE client_token = ?", (client_token,)
+        )
+        row = query_result.fetchone()
+        if row is None:
+            return None
+
+        # Create a DatabaseEntry.Connection object from the row
+        connection_entry = DatabaseEntry.Connection()
+        connection_entry.client_token = row[0]
+        connection_entry.init_time = dt.datetime.fromtimestamp(row[1])
+        connection_entry.last_message_time = dt.datetime.fromtimestamp(row[2]) if row[2] else None
+        connection_entry.num_messages = row[3]
+        connection_entry.client_ip = row[4]
+
+        return connection_entry
+
+    def get_connection_entries(
+        self,
+        before: dt.datetime | None = None,
+        after: dt.datetime | None = None,
+        limit: int = 0,
+        offset: int = 0,
+    ) -> list[DatabaseEntry.Connection] | None:
+        cursor = self._connection.cursor()
+        conditions: list[str] = []
+        parameters: list[str] = []
+        if before is not None:
+            conditions.append("init_time < ?")
+        if after is not None:
+            conditions.append("init_time > ?")
+        if limit > 0:
+            conditions.append("LIMIT ?")
+        if offset > 0:
+            conditions.append("OFFSET ?")
+
+        query = "SELECT * FROM Connection"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query_result = cursor.execute(query, parameters)
+        connection_entries = []
+        for row in query_result.fetchall():
+            # Create a DatabaseEntry.Connection object from the row
+            connection_entry = DatabaseEntry.Connection()
+            connection_entry.client_token = row[0]
+            connection_entry.init_time = dt.datetime.fromtimestamp(row[1])
+            connection_entry.last_message_time = (
+                dt.datetime.fromtimestamp(row[2]) if row[2] else None
+            )
+            connection_entry.num_messages = row[3]
+            connection_entry.client_ip = row[4]
+
+            connection_entries.append(connection_entry)
+
+        return connection_entries if len(connection_entries) > 0 else None
 
     def set_connection_entry(
         self,
@@ -193,18 +249,38 @@ class DatabaseClient:
         init_time: dt.datetime,
         last_message_time: dt.datetime | None,
         num_messages: int,
+        client_ip: str,
         set_method=enums.SQLSetMethod.INSERT,
     ) -> None:
-        # Build struct
-        connection_entry = DatabaseEntry.Connection()
-        connection_entry.client_token = client_token
-        connection_entry.init_time = init_time
-        connection_entry.last_message_time = last_message_time
-        connection_entry.num_messages = num_messages
 
         match set_method:
             case enums.SQLSetMethod.INSERT:
-                raise NotImplementedError
+                cursor = self._connection.cursor()
+                if last_message_time is None:
+                    # If last_message_time is None, we don't include it in the insert statement
+                    cursor.execute(
+                        """
+                        INSERT INTO Connection (client_token, init_time, num_messages, client_ip)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (client_token, str(init_time.timestamp()), num_messages, client_ip),
+                    )
+                else:
+                    # If last_message_time is provided, we include it in the insert statement
+                    cursor.execute(
+                        f"""
+                        INSERT INTO Connection (client_token, init_time, last_message_time, num_messages, client_ip)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            client_token,
+                            str(init_time.timestamp()),
+                            str(last_message_time.timestamp()),
+                            num_messages,
+                            client_ip,
+                        ),
+                    )
+                self._connection.commit()
             case enums.SQLSetMethod.UPDATE:
                 raise NotImplementedError
             case enums.SQLSetMethod.UPSERT:

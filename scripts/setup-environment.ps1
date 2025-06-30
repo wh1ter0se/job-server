@@ -1,13 +1,14 @@
 param()
 . "$PSScriptRoot/_common.ps1"
 
-echo "[TASK] Setting up environment in '$venvRoot'..."
 
 # Make sure we run from repo root
 Set-Location $workspaceRoot
 
 # 0. Clean any old venv
 & (Join-Path $PSScriptRoot 'clean-environment.ps1')
+
+echo "[TASK] Setting up environment in '$venvRoot'..."
 
 # 1. Create a fresh venv
 python -m venv $venvRoot
