@@ -172,7 +172,7 @@ class JobServer:
         before: dt.datetime | None = None,  # Filter
         after: dt.datetime | None = None,  # Filter
         descending: bool = True,
-        items_per_page: int = 25,
+        items_per_page: int | None = None,
         page: int = 1,
     ) -> dict:
         raise NotImplementedError
@@ -192,7 +192,7 @@ class JobServer:
         job_id: str | None = None,  # Filter
         client_token: str | None = None,  # Filter
         descending: bool = True,
-        items_per_page: int = 25,
+        items_per_page: int | None = None,
         page: int = 1,
         include_traceback: bool = False,
     ) -> dict:
@@ -206,7 +206,7 @@ class JobServer:
 
     async def get_job_templates(
         self,
-        items_per_page: int = 25,
+        items_per_page: int | None = None,
         page: int = 1,
     ) -> dict:
         raise NotImplementedError
@@ -224,7 +224,7 @@ class JobServer:
         before: dt.datetime | None = None,  # Filter
         after: dt.datetime | None = None,  # Filter
         descending: bool = True,
-        items_per_page: int = 25,
+        items_per_page: int | None = None,
         page: int = 1,
     ) -> dict:
         raise NotImplementedError
@@ -234,7 +234,7 @@ class JobServer:
         before: dt.datetime | None = None,  # Filter
         after: dt.datetime | None = None,  # Filter
         descending: bool = True,
-        items_per_page: int = 25,
+        items_per_page: int | None = None,
         page: int = 1,
     ) -> dict:
         raise NotImplementedError

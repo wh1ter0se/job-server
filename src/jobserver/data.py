@@ -149,24 +149,31 @@ class DatabaseEntry:
 class DatabaseClient:
 
     config: ConfigClient
+    _connection: sqlite3.Connection
 
     def __init__(self, config: ConfigClient):
         self.config = config
+        self._connect()
+
+    def __del__(self):
+        self._disconnect()
 
     # region Private
-    def _connect(self, db_file: Path) -> sqlite3.Connection:
+    def _connect(self) -> None:
         """Create a database connection to the SQLite database specified by db_file."""
         try:
             _db_path: str = self.config.get(key=enums.ConfigValue.DATABASE_PATH.value)
-            db_path = Path(_db_path)
-            if not db_path.exists():
-                raise FileNotFoundError(f"Database file not found: {db_path}")
-            connection = sqlite3.connect(db_path)
-            print(f"Connected to database: {db_file}")
-            return connection
+            db_file_path = Path(_db_path)
+            if not db_file_path.exists():
+                shutil.copyfile(src=DATABASE_TEMPLATE_FILE_PATH, dst=db_file_path)
+            self._connection = sqlite3.connect(db_file_path)
+            print(f"Connected to database: {db_file_path}")
         except sqlite3.Error as e:
             print(f"Error connecting to database: {e}")
             raise e
+
+    def _disconnect(self) -> None:
+        self._connection.close()
 
     # endregion Private
 
@@ -175,7 +182,8 @@ class DatabaseClient:
     # region   Connection
     def get_connection_entry(
         self,
-        client_token: str,
+        client_token: str | None = None,
+        before: dt.datetime | None = None,
     ) -> DatabaseEntry.Connection | None:
         raise NotImplementedError
 
