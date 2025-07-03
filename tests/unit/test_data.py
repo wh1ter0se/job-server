@@ -189,7 +189,7 @@ def get_setter_for_table(
         case Table.SERVER_UPDATE:
             return database_client.set_server_update_entry
         case _:
-            assert (False, "Unknown table")
+            assert False
 
 
 # endregion Database - Helpers
