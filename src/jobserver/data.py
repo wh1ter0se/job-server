@@ -113,7 +113,6 @@ class ConfigClient:
 
 
 class DatabaseEntry:
-
     class Connection:
         client_token: str  # Primary key
         init_time: dt.datetime
@@ -149,7 +148,7 @@ class DatabaseEntry:
         error_time: dt.datetime
         severity_level: enums.ErrorSeverity
         traceback: str
-        job_hash: str | None  # FK
+        job_id: str | None  # FK
         client_token: str | None  # FK
 
         def __init__(
@@ -165,7 +164,7 @@ class DatabaseEntry:
             self.error_time = error_time
             self.severity_level = severity_level
             self.traceback = traceback
-            self.job_hash = job_hash
+            self.job_id = job_hash
             self.client_token = client_token
 
         def __eq__(self, value) -> bool:
@@ -174,7 +173,7 @@ class DatabaseEntry:
                 and self.error_time == value.error_time
                 and self.severity_level == value.severity_level
                 and self.traceback == value.traceback
-                and self.job_hash == value.job_hash
+                and self.job_id == value.job_hash
                 and self.client_token == value.client_token
             )
 
@@ -226,26 +225,34 @@ class DatabaseEntry:
         time: dt.datetime  # Primary key
         type: int
         subtype: int
+        comment: str
         job_id: str | None  # FK
+        client_token: str | None  # FK
 
         def __init__(
             self,
             time: dt.datetime,
             type: int,
             subtype: int,
+            comment: str,
             job_id: str | None,
+            client_token: str | None,
         ) -> None:
             self.time = time
             self.type = type
             self.subtype = subtype
+            self.comment = comment
             self.job_id = job_id
+            self.client_token = client_token
 
         def __eq__(self, value) -> bool:
             return (
                 self.time == value.time
                 and self.type == value.type
                 and self.subtype == value.subtype
+                and self.comment == value.comment
                 and self.job_id == value.job_id
+                and self.client_token == value.client_token
             )
 
 
@@ -306,7 +313,7 @@ class DatabaseClient:
 
         return connection_entry
 
-    def get_connection_entries(
+    def search_connection_entries(
         self,
         before: dt.datetime | None = None,
         after: dt.datetime | None = None,
@@ -348,61 +355,51 @@ class DatabaseClient:
     def set_connection_entry(
         self,
         connection_entry: DatabaseEntry.Connection,
-        set_method=enums.SQLSetMethod.INSERT,
+        set_method: enums.SQLSetMethod = enums.SQLSetMethod.INSERT,
     ) -> None:
-        cursor = self._connection.cursor()
+        # Get the columns and values from the connection object
+        columns = [
+            "client_token",
+            "init_time",
+            "num_messages",
+            "client_ip",
+        ]
+        values = [
+            connection_entry.client_token,
+            connection_entry.init_time.timestamp(),
+            connection_entry.num_messages,
+            connection_entry.client_ip,
+        ]
+
+        # If the last_message_time is set, add it to the columns and values
+        if connection_entry.last_message_time is not None:
+            columns.append("last_message_time")
+            values.append(connection_entry.last_message_time.timestamp())
+
+        # Construct the query based on the set method
         match set_method:
             case enums.SQLSetMethod.INSERT:
-                if connection_entry.last_message_time is None:
-                    # If last_message_time is None, we don't include it in the insert statement
-                    cursor.execute(
-                        """
-                        INSERT INTO Connection (client_token, init_time, num_messages, client_ip)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        (
-                            connection_entry.client_token,
-                            connection_entry.init_time.timestamp(),
-                            connection_entry.num_messages,
-                            connection_entry.client_ip,
-                        ),
-                    )
-                else:
-                    # If last_message_time is provided, we include it in the insert statement
-                    cursor.execute(
-                        f"""
-                        INSERT INTO Connection (client_token, init_time, last_message_time, num_messages, client_ip)
-                        VALUES (?, ?, ?, ?, ?)
-                        """,
-                        (
-                            connection_entry.client_token,
-                            connection_entry.init_time.timestamp(),
-                            connection_entry.last_message_time.timestamp(),
-                            connection_entry.num_messages,
-                            connection_entry.client_ip,
-                        ),
-                    )
+                query = "INSERT INTO Connection ({}) VALUES ({})".format(
+                    ", ".join(columns), ", ".join("?" * len(columns))
+                )
             case enums.SQLSetMethod.UPDATE:
-                cursor.execute(
-                    f"""
-                    UPDATE Connection
-                    SET init_time = ?, last_message_time = ?, num_messages = ?, client_ip = ?
-                    WHERE client_token = ?
-                    """,
-                    (
-                        connection_entry.init_time.timestamp(),
-                        (
-                            connection_entry.last_message_time.timestamp()
-                            if connection_entry.last_message_time is not None
-                            else None
-                        ),
-                        connection_entry.num_messages,
-                        connection_entry.client_ip,
-                        connection_entry.client_token,
-                    ),
+                query = "UPDATE Connection SET {} WHERE client_token = ?".format(
+                    ", ".join(f"{column} = ?" for column in columns if column != "client_token")
                 )
             case enums.SQLSetMethod.UPSERT:
-                raise NotImplementedError
+                query = "INSERT INTO Connection ({}) VALUES ({}) ON CONFLICT (client_token) DO UPDATE SET {}".format(
+                    ", ".join(columns),
+                    ", ".join("?" * len(columns)),
+                    ", ".join(
+                        f"{column} = EXCLUDED.{column}"
+                        for column in columns
+                        if column != "client_token"
+                    ),
+                )
+
+        # Execute the query and commit the changes
+        cursor = self._connection.cursor()
+        cursor.execute(query, values)
         self._connection.commit()
 
     # endregion Connection
@@ -419,16 +416,101 @@ class DatabaseClient:
         error_entry: DatabaseEntry.Error,
         set_method=enums.SQLSetMethod.INSERT,
     ) -> None:
-        raise NotImplementedError
+        # Get the columns and values from the error_entry object
+        columns = [
+            "error_id",
+            "error_time",
+            "severity_level",
+            "traceback",
+            "job_id",
+            "client_token",
+        ]
+        values = [
+            error_entry.error_id,
+            error_entry.error_time.timestamp(),
+            error_entry.severity_level.value,
+            error_entry.traceback,
+            error_entry.job_id,
+            error_entry.client_token,
+        ]
+
+        # Construct the query based on the set method
+        match set_method:
+            case enums.SQLSetMethod.INSERT:
+                query = "INSERT INTO Error ({}) VALUES ({})".format(
+                    ", ".join(columns), ", ".join("?" * len(columns))
+                )
+            case enums.SQLSetMethod.UPDATE:
+                query = "UPDATE Error SET {} WHERE error_id = ?".format(
+                    ", ".join(f"{column} = ?" for column in columns if column != "error_id")
+                )
+                # values.append(error_entry.error_id)
+            case enums.SQLSetMethod.UPSERT:
+                query = "INSERT INTO Error ({}) VALUES ({}) ON CONFLICT (error_id) DO UPDATE SET {}".format(
+                    ", ".join(columns),
+                    ", ".join("?" * len(columns)),
+                    ", ".join(
+                        f"{column} = EXCLUDED.{column}"
+                        for column in columns
+                        if column != "error_id"
+                    ),
+                )
+
+        # Execute the query and commit the changes
+        cursor = self._connection.cursor()
+        cursor.execute(query, values)
+        self._connection.commit()
 
     # endregion Error
 
     # region   Job Status
     def get_job_status_entry(
         self,
-        job_hash: str,
+        job_id: str,
     ) -> DatabaseEntry.JobStatus | None:
-        raise NotImplementedError
+        cursor = self._connection.cursor()
+        query = "SELECT * FROM JobStatus WHERE job_id = ?"
+        cursor.execute(query, (job_id,))
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return DatabaseEntry.JobStatus(
+            job_id=row[0],
+            init_time=dt.datetime.fromtimestamp(row[1]),
+            archived=row[2],
+        )
+
+    def set_job_status_entry(
+        self,
+        job_status_entry: DatabaseEntry.JobStatus,
+        set_method=enums.SQLSetMethod.INSERT,
+    ) -> None:
+        cursor = self._connection.cursor()
+        columns = ["job_id", "init_time", "archived"]
+        values = [
+            job_status_entry.job_id,
+            job_status_entry.init_time.timestamp(),
+            job_status_entry.archived,
+        ]
+        match set_method:
+            case enums.SQLSetMethod.INSERT:
+                query = "INSERT INTO JobStatus ({}) VALUES ({})".format(
+                    ", ".join(columns), ", ".join("?" * len(columns))
+                )
+            case enums.SQLSetMethod.UPDATE:
+                query = "UPDATE JobStatus SET {} WHERE job_id = ?".format(
+                    ", ".join(f"{column} = ?" for column in columns if column != "job_id")
+                )
+            case enums.SQLSetMethod.UPSERT:
+                query = "INSERT INTO JobStatus ({}) VALUES ({}) ON CONFLICT (job_id) DO UPDATE SET {}".format(
+                    ", ".join(columns),
+                    ", ".join("?" * len(columns)),
+                    ", ".join(
+                        f"{column} = EXCLUDED.{column}" for column in columns if column != "job_id"
+                    ),
+                )
+        cursor.execute(query, values)
+        self._connection.commit()
 
     # endregion Job Status
 
@@ -440,6 +522,42 @@ class DatabaseClient:
     ) -> DatabaseEntry.JobUpdate | None:
         raise NotImplementedError
 
+    def set_job_update_entry(
+        self,
+        job_update_entry: DatabaseEntry.JobUpdate,
+        set_method=enums.SQLSetMethod.INSERT,
+    ) -> None:
+        cursor = self._connection.cursor()
+        columns = ["job_id", "update_time", "new_state", "comment"]
+        values = [
+            job_update_entry.job_id,
+            job_update_entry.update_time.timestamp(),
+            job_update_entry.new_state,
+            job_update_entry.comment,
+        ]
+        match set_method:
+            case enums.SQLSetMethod.INSERT:
+                query = "INSERT INTO JobUpdate ({}) VALUES ({})".format(
+                    ", ".join(columns), ", ".join("?" * len(columns))
+                )
+            case enums.SQLSetMethod.UPDATE:
+                query = "UPDATE JobUpdate SET {} WHERE job_id = ?".format(
+                    ", ".join(f"{column} = ?" for column in columns if column != "job_id")
+                )
+            case enums.SQLSetMethod.UPSERT:
+                query = "INSERT INTO JobUpdate ({}) VALUES ({}) ON CONFLICT (job_id, update_time) DO UPDATE SET {}".format(
+                    ", ".join(columns),
+                    ", ".join("?" * len(columns)),
+                    ", ".join(
+                        f"{column} = EXCLUDED.{column}"
+                        for column in columns
+                        if column not in ["job_id", "update_time"]
+                    ),
+                )
+
+        cursor.execute(query, values)
+        self._connection.commit()
+
     # endregion Job Update
 
     # region   Server Update
@@ -448,6 +566,51 @@ class DatabaseClient:
         time: dt.datetime,
     ) -> DatabaseEntry.ServerUpdate | None:
         raise NotImplementedError
+
+    def set_server_update_entry(
+        self,
+        server_update_entry: DatabaseEntry.ServerUpdate,
+        set_method=enums.SQLSetMethod.INSERT,
+    ) -> None:
+        cursor = self._connection.cursor()
+        columns = ["update_time", "type", "subtype", "comment"]
+        values = [
+            int(server_update_entry.time.timestamp()),  # TODO: figure out why type is strict
+            server_update_entry.type,
+            server_update_entry.subtype,
+            server_update_entry.comment,
+        ]
+
+        if server_update_entry.job_id is not None:
+            columns.append("job_id")
+            values.append(server_update_entry.job_id)
+
+        if server_update_entry.client_token is not None:
+            columns.append("client_token")
+            values.append(server_update_entry.client_token)
+
+        match set_method:
+            case enums.SQLSetMethod.INSERT:
+                query = "INSERT INTO ServerUpdate ({}) VALUES ({})".format(
+                    ", ".join(columns), ", ".join("?" * len(columns))
+                )
+            case enums.SQLSetMethod.UPDATE:
+                query = "UPDATE ServerUpdate SET {} WHERE update_time = ?".format(
+                    ", ".join(f"{column} = ?" for column in columns if column != "update_time")
+                )
+            case enums.SQLSetMethod.UPSERT:
+                query = "INSERT INTO ServerUpdate ({}) VALUES ({}) ON CONFLICT (update_time) DO UPDATE SET {}".format(
+                    ", ".join(columns),
+                    ", ".join("?" * len(columns)),
+                    ", ".join(
+                        f"{column} = EXCLUDED.{column}"
+                        for column in columns
+                        if column != "update_time"
+                    ),
+                )
+
+        cursor.execute(query, values)
+        self._connection.commit()
 
     # endregion Server Update
     # endregion Table Getters/Setters
