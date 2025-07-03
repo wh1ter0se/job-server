@@ -62,9 +62,33 @@ def database_client(
 
 
 # region Database - Fixtures
+
+
+class Table(Enum):
+    CONNECTION = 1
+    ERROR = 2
+    JOB_STATUS = 3
+    JOB_UPDATE = 4
+    SERVER_UPDATE = 5
+
+
+type DatabaseEntryType = (
+    jserv.DatabaseEntry.Connection
+    | jserv.DatabaseEntry.Error
+    | jserv.DatabaseEntry.JobStatus
+    | jserv.DatabaseEntry.JobUpdate
+    | jserv.DatabaseEntry.ServerUpdate
+)
+
+
+class DatabaseEntryFactory:
+    def get(self) -> DatabaseEntryType:
+        raise NotImplementedError
+
+
 @pytest.fixture
-def connection_entry_factory() -> object:
-    class Factory:
+def connection_entry_factory() -> DatabaseEntryFactory:
+    class Factory(DatabaseEntryFactory):
         def get(self) -> jserv.DatabaseEntry.Connection:
             connection_entry = jserv.DatabaseEntry.Connection(
                 client_token=str(hash(dt.datetime.now())),
@@ -79,8 +103,8 @@ def connection_entry_factory() -> object:
 
 
 @pytest.fixture
-def error_entry_factory() -> object:
-    class Factory:
+def error_entry_factory() -> DatabaseEntryFactory:
+    class Factory(DatabaseEntryFactory):
         def get(self) -> jserv.DatabaseEntry.Error:
             error_entry = jserv.DatabaseEntry.Error(
                 error_id=str(hash(dt.datetime.now())),
@@ -96,8 +120,8 @@ def error_entry_factory() -> object:
 
 
 @pytest.fixture
-def job_status_entry_factory() -> object:
-    class Factory:
+def job_status_entry_factory() -> DatabaseEntryFactory:
+    class Factory(DatabaseEntryFactory):
         def get(self) -> jserv.DatabaseEntry.JobStatus:
             job_status_entry = jserv.DatabaseEntry.JobStatus(
                 job_id=str(hash(dt.datetime.now())),
@@ -110,8 +134,8 @@ def job_status_entry_factory() -> object:
 
 
 @pytest.fixture
-def job_update_entry_factory() -> object:
-    class Factory:
+def job_update_entry_factory() -> DatabaseEntryFactory:
+    class Factory(DatabaseEntryFactory):
         def get(self) -> jserv.DatabaseEntry.JobUpdate:
             job_update_entry = jserv.DatabaseEntry.JobUpdate(
                 job_id=str(hash(dt.datetime.now())),
@@ -125,8 +149,8 @@ def job_update_entry_factory() -> object:
 
 
 @pytest.fixture
-def server_update_entry_factory() -> object:
-    class Factory:
+def server_update_entry_factory() -> DatabaseEntryFactory:
+    class Factory(DatabaseEntryFactory):
         def get(self) -> jserv.DatabaseEntry.ServerUpdate:
             server_update_entry = jserv.DatabaseEntry.ServerUpdate(
                 time=dt.datetime.now(),
@@ -145,16 +169,10 @@ def server_update_entry_factory() -> object:
 
 
 # region Database - Helpers
-class Table(Enum):
-    CONNECTION = 1
-    ERROR = 2
-    JOB_STATUS = 3
-    JOB_UPDATE = 4
-    SERVER_UPDATE = 5
 
 
 def set_entry(
-    database_entry: Any,  # Subclass of DatabaseEntry,
+    database_entry: DatabaseEntryType,
     setter: Callable[
         [
             Any,  # Subclass of DatabaseEntry,
@@ -192,208 +210,165 @@ def get_setter_for_table(
             assert False
 
 
-# endregion Database - Helpers
+# endregion Database - Test Suites
 
 
-# region Database - Write-Only Tests
+class TestDatabaseWriteFunctions:
 
-
-@pytest.mark.xfail(raises=NotImplementedError)
-@pytest.mark.parametrize(
-    "database_entry_factory_name, table",
-    [
-        ("connection_entry_factory", Table.CONNECTION),
-        ("error_entry_factory", Table.ERROR),
-        ("job_status_entry_factory", Table.JOB_STATUS),
-        ("job_update_entry_factory", Table.JOB_UPDATE),
-        ("server_update_entry_factory", Table.SERVER_UPDATE),
-    ],
-)
-def test_insert(
-    database_client: jserv.DatabaseClient,
-    database_entry_factory_name: str,  # Fixture -> Subclass of DatabaseEntry
-    table: Table,
-    request: pytest.FixtureRequest,
-) -> None:
-    database_entry = request.getfixturevalue(database_entry_factory_name).get()
-    setter = get_setter_for_table(database_client, table)
-
-    # Insert once
-    set_entry(
-        database_entry=database_entry,
-        setter=setter,
-        set_method=jserv.enums.SQLSetMethod.INSERT,
+    # region Database - Write-Only Tests
+    write_only_test_parameters = (
+        "database_entry_factory_name, table",
+        [
+            ("connection_entry_factory", Table.CONNECTION),
+            ("error_entry_factory", Table.ERROR),
+            ("job_status_entry_factory", Table.JOB_STATUS),
+            ("job_update_entry_factory", Table.JOB_UPDATE),
+            ("server_update_entry_factory", Table.SERVER_UPDATE),
+        ],
     )
 
+    @pytest.mark.parametrize(*write_only_test_parameters)
+    def test_insert(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> DatabaseEntryType
+        table: Table,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry: DatabaseEntryType = request.getfixturevalue(
+            database_entry_factory_name
+        ).get()
+        setter = get_setter_for_table(database_client, table)
 
-@pytest.mark.xfail(raises=NotImplementedError)
-@pytest.mark.parametrize(
-    "database_entry_factory_name, table",
-    [
-        ("connection_entry_factory", Table.CONNECTION),
-        ("error_entry_factory", Table.ERROR),
-        ("job_status_entry_factory", Table.JOB_STATUS),
-        ("job_update_entry_factory", Table.JOB_UPDATE),
-        ("server_update_entry_factory", Table.SERVER_UPDATE),
-    ],
-)
-def test_insert_twice_fails(
-    database_client: jserv.DatabaseClient,
-    database_entry_factory_name: str,  # Fixture -> Subclass of DatabaseEntry
-    table: Table,
-    request: pytest.FixtureRequest,
-) -> None:
-    database_entry = request.getfixturevalue(database_entry_factory_name).get()
-    setter = get_setter_for_table(database_client, table)
-
-    # Insert once
-    set_entry(
-        database_entry=database_entry,
-        setter=setter,
-        set_method=jserv.enums.SQLSetMethod.INSERT,
-    )
-
-    # Insert twice
-    with pytest.raises(Exception):
+        # Insert once
         set_entry(
             database_entry=database_entry,
             setter=setter,
             set_method=jserv.enums.SQLSetMethod.INSERT,
         )
 
+    @pytest.mark.parametrize(*write_only_test_parameters)
+    def test_insert_twice_fails(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> DatabaseEntryType
+        table: Table,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry: DatabaseEntryType = request.getfixturevalue(
+            database_entry_factory_name
+        ).get()
+        setter = get_setter_for_table(database_client, table)
 
-@pytest.mark.xfail(raises=NotImplementedError)
-@pytest.mark.parametrize(
-    "database_entry_factory_name, table",
-    [
-        ("connection_entry_factory", Table.CONNECTION),
-        ("error_entry_factory", Table.ERROR),
-        ("job_status_entry_factory", Table.JOB_STATUS),
-        ("job_update_entry_factory", Table.JOB_UPDATE),
-        ("server_update_entry_factory", Table.SERVER_UPDATE),
-    ],
-)
-def test_upsert_on_empty_table(
-    database_client: jserv.DatabaseClient,
-    database_entry_factory_name: str,  # Fixture -> Subclass of DatabaseEntry
-    table: Table,
-    request: pytest.FixtureRequest,
-) -> None:
-    database_entry = request.getfixturevalue(database_entry_factory_name).get()
-    setter = get_setter_for_table(database_client, table)
+        # Insert once
+        set_entry(
+            database_entry=database_entry,
+            setter=setter,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
 
-    # Upsert once
-    set_entry(
-        database_entry=database_entry,
-        setter=setter,
-        set_method=jserv.enums.SQLSetMethod.UPSERT,
-    )
+        # Insert twice
+        with pytest.raises(Exception):
+            set_entry(
+                database_entry=database_entry,
+                setter=setter,
+                set_method=jserv.enums.SQLSetMethod.INSERT,
+            )
 
+    @pytest.mark.parametrize(*write_only_test_parameters)
+    def test_upsert_on_empty_table(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> DatabaseEntryType
+        table: Table,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry: DatabaseEntryType = request.getfixturevalue(
+            database_entry_factory_name
+        ).get()
+        setter = get_setter_for_table(database_client, table)
 
-@pytest.mark.xfail(raises=NotImplementedError)
-@pytest.mark.parametrize(
-    "database_entry_factory_name, table",
-    [
-        ("connection_entry_factory", Table.CONNECTION),
-        ("error_entry_factory", Table.ERROR),
-        ("job_status_entry_factory", Table.JOB_STATUS),
-        ("job_update_entry_factory", Table.JOB_UPDATE),
-        ("server_update_entry_factory", Table.SERVER_UPDATE),
-    ],
-)
-def test_upsert_on_non_empty_table(
-    database_client: jserv.DatabaseClient,
-    database_entry_factory_name: str,  # Fixture -> Subclass of DatabaseEntry
-    table: Table,
-    request: pytest.FixtureRequest,
-) -> None:
-    database_entry_1 = request.getfixturevalue(database_entry_factory_name).get()
-    database_entry_2 = request.getfixturevalue(database_entry_factory_name).get()
-    setter = get_setter_for_table(database_client, table)
+        # Upsert once
+        set_entry(
+            database_entry=database_entry,
+            setter=setter,
+            set_method=jserv.enums.SQLSetMethod.UPSERT,
+        )
 
-    # Insert once
-    set_entry(
-        database_entry=database_entry_1,
-        setter=setter,
-        set_method=jserv.enums.SQLSetMethod.INSERT,
-    )
+    @pytest.mark.parametrize(*write_only_test_parameters)
+    def test_upsert_on_non_empty_table(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> DatabaseEntryType
+        table: Table,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry_1 = request.getfixturevalue(database_entry_factory_name).get()
+        database_entry_2 = request.getfixturevalue(database_entry_factory_name).get()
+        setter = get_setter_for_table(database_client, table)
 
-    # Upsert once
-    set_entry(
-        database_entry=database_entry_2,
-        setter=setter,
-        set_method=jserv.enums.SQLSetMethod.UPSERT,
-    )
+        # Insert once
+        set_entry(
+            database_entry=database_entry_1,
+            setter=setter,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
 
+        # Upsert once
+        set_entry(
+            database_entry=database_entry_2,
+            setter=setter,
+            set_method=jserv.enums.SQLSetMethod.UPSERT,
+        )
 
-pytest.mark.xfail(raises=NotImplementedError)
+    @pytest.mark.parametrize(*write_only_test_parameters)
+    def test_update_on_empty_table(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> DatabaseEntryType
+        table: Table,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry: DatabaseEntryType = request.getfixturevalue(
+            database_entry_factory_name
+        ).get()
+        setter = get_setter_for_table(database_client, table)
 
+        # Update once
+        set_entry(
+            database_entry=database_entry,
+            setter=setter,
+            set_method=jserv.enums.SQLSetMethod.UPDATE,
+        )
 
-@pytest.mark.xfail(raises=NotImplementedError)
-@pytest.mark.parametrize(
-    "database_entry_factory_name, table",
-    [
-        ("connection_entry_factory", Table.CONNECTION),
-        ("error_entry_factory", Table.ERROR),
-        ("job_status_entry_factory", Table.JOB_STATUS),
-        ("job_update_entry_factory", Table.JOB_UPDATE),
-        ("server_update_entry_factory", Table.SERVER_UPDATE),
-    ],
-)
-def test_update_on_empty_table(
-    database_client: jserv.DatabaseClient,
-    database_entry_factory_name: str,  # Fixture -> Subclass of DatabaseEntry
-    table: Table,
-    request: pytest.FixtureRequest,
-) -> None:
-    database_entry = request.getfixturevalue(database_entry_factory_name).get()
-    setter = get_setter_for_table(database_client, table)
+    @pytest.mark.parametrize(*write_only_test_parameters)
+    def test_update_on_non_empty_table(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> DatabaseEntryType
+        table: Table,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry_1 = request.getfixturevalue(database_entry_factory_name).get()
+        database_entry_2 = request.getfixturevalue(database_entry_factory_name).get()
+        setter = get_setter_for_table(database_client, table)
 
-    # Update once
-    set_entry(
-        database_entry=database_entry,
-        setter=setter,
-        set_method=jserv.enums.SQLSetMethod.UPDATE,
-    )
+        # Insert once
+        set_entry(
+            database_entry=database_entry_1,
+            setter=setter,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
 
-
-@pytest.mark.xfail(raises=NotImplementedError)
-@pytest.mark.parametrize(
-    "database_entry_factory_name, table",
-    [
-        ("connection_entry_factory", Table.CONNECTION),
-        ("error_entry_factory", Table.ERROR),
-        ("job_status_entry_factory", Table.JOB_STATUS),
-        ("job_update_entry_factory", Table.JOB_UPDATE),
-        ("server_update_entry_factory", Table.SERVER_UPDATE),
-    ],
-)
-def test_update_on_non_empty_table(
-    database_client: jserv.DatabaseClient,
-    database_entry_factory_name: str,  # Fixture -> Subclass of DatabaseEntry
-    table: Table,
-    request: pytest.FixtureRequest,
-) -> None:
-    database_entry_1 = request.getfixturevalue(database_entry_factory_name).get()
-    database_entry_2 = request.getfixturevalue(database_entry_factory_name).get()
-    setter = get_setter_for_table(database_client, table)
-
-    # Insert once
-    set_entry(
-        database_entry=database_entry_1,
-        setter=setter,
-        set_method=jserv.enums.SQLSetMethod.INSERT,
-    )
-
-    # Update once
-    set_entry(
-        database_entry=database_entry_2,
-        setter=setter,
-        set_method=jserv.enums.SQLSetMethod.UPDATE,
-    )
+        # Update once
+        set_entry(
+            database_entry=database_entry_2,
+            setter=setter,
+            set_method=jserv.enums.SQLSetMethod.UPDATE,
+        )
 
 
-# endregion Database - Write-Only Tests
+# endregion Database - Test Suites
 
 
 # region Database - Connection
