@@ -4,8 +4,8 @@ import shutil
 import sqlite3
 import datetime as dt
 import importlib.resources
-from pathlib import Path
 from typing import Any
+from pathlib import Path
 from . import enums
 
 DEFAULT_CONFIG_FILE_PATH = Path(
@@ -112,8 +112,19 @@ class ConfigClient:
         self._save_config()
 
 
+class _DatabaseEntry:
+    table: enums.DatabaseTable
+    primary_keys: list[str]
+
+    def __init__(self, primary_keys: list[str]) -> None:
+        self.primary_keys = primary_keys
+
+    def __eq__(self, value) -> bool:
+        raise NotImplementedError("Subclasses of _DatabaseEntry must implement __eq__ method.")
+
+
 class DatabaseEntry:
-    class Connection:
+    class Connection(_DatabaseEntry):
         client_token: str  # Primary key
         init_time: dt.datetime
         last_message_time: dt.datetime | None
@@ -133,6 +144,7 @@ class DatabaseEntry:
             self.last_message_time = last_message_time
             self.num_messages = num_messages
             self.client_ip = client_ip
+            super().__init__(primary_keys=["client_token"])
 
         def __eq__(self, value) -> bool:
             return (
@@ -143,7 +155,7 @@ class DatabaseEntry:
                 and self.client_ip == value.client_ip
             )
 
-    class Error:
+    class Error(_DatabaseEntry):
         error_id: str  # Primary key
         error_time: dt.datetime
         severity_level: enums.ErrorSeverity
@@ -166,6 +178,7 @@ class DatabaseEntry:
             self.traceback = traceback
             self.job_id = job_hash
             self.client_token = client_token
+            super().__init__(primary_keys=["error_id"])
 
         def __eq__(self, value) -> bool:
             return (
@@ -177,7 +190,7 @@ class DatabaseEntry:
                 and self.client_token == value.client_token
             )
 
-    class JobStatus:
+    class JobStatus(_DatabaseEntry):
         job_id: str  # Primary key
         init_time: dt.datetime
         archived: bool
@@ -191,11 +204,12 @@ class DatabaseEntry:
             self.job_id = job_id
             self.init_time = init_time
             self.archived = archived
+            super().__init__(primary_keys=["job_id"])
 
         def __eq__(self, value) -> bool:
             return self.job_id == value.job_id and self.init_time == value.init_time
 
-    class JobUpdate:
+    class JobUpdate(_DatabaseEntry):
         job_id: str  # Primary key
         update_time: dt.datetime  # Primary key
         new_state: int
@@ -212,6 +226,7 @@ class DatabaseEntry:
             self.update_time = update_time
             self.new_state = new_state
             self.comment = comment
+            super().__init__(primary_keys=["job_id", "update_time"])
 
         def __eq__(self, value) -> bool:
             return (
@@ -221,7 +236,7 @@ class DatabaseEntry:
                 and self.comment == value.comment
             )
 
-    class ServerUpdate:
+    class ServerUpdate(_DatabaseEntry):
         time: dt.datetime  # Primary key
         type: int
         subtype: int
@@ -244,6 +259,7 @@ class DatabaseEntry:
             self.comment = comment
             self.job_id = job_id
             self.client_token = client_token
+            super().__init__(primary_keys=["time"])
 
         def __eq__(self, value) -> bool:
             return (

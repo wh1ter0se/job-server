@@ -95,6 +95,14 @@ class ConfigValue(Enum):
     # Preferences
 
 
+class DatabaseTable(Enum):
+    CONNECTION = 1
+    ERROR = 2
+    JOB_STATUS = 3
+    JOB_UPDATE = 4
+    SERVER_UPDATE = 5
+
+
 class SQLSetMethod(Enum):
     INSERT = 1
     UPDATE = 2
