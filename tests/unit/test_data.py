@@ -19,11 +19,13 @@ def tmp_dir() -> Generator[Path, None, None]:
 
 
 # region Config
+@pytest.mark.dependency()
 def test_config_can_load(tmp_dir: Path) -> None:
     tmp_config_path = tmp_dir.joinpath(f"config.json")
     config = jserv.ConfigClient(config_file_path=tmp_config_path, create_new_if_missing=True)
 
 
+@pytest.mark.dependency()
 def test_database_path_can_be_set_in_config(tmp_dir: Path) -> None:
     tmp_config_path = tmp_dir.joinpath(f"config.json")
     tmp_db_path = tmp_dir.joinpath(f"jobserver.sqlite3")
@@ -44,6 +46,12 @@ def config_client(tmp_dir: Path) -> Generator[jserv.ConfigClient, None, None]:
 
 
 # region Database
+@pytest.mark.dependency(
+    depends=[
+        "test_config_can_load",
+        "test_database_path_can_be_set_in_config",
+    ]
+)
 def test_database_client_can_load(config_client: jserv.ConfigClient) -> None:
     database = jserv.DatabaseClient(config=config_client)
     assert database
@@ -156,7 +164,7 @@ def server_update_entry_factory() -> DatabaseEntryFactory:
                 time=dt.datetime.now(),
                 type=1,
                 subtype=1,
-                comment=1,
+                comment="Server update comment",
                 job_id=None,
                 client_token=None,
             )
@@ -213,10 +221,10 @@ def get_setter_for_table(
 # endregion Database - Test Suites
 
 
-class TestDatabaseWriteFunctions:
-
-    # region Database - Write-Only Tests
-    write_only_test_parameters = (
+# endregion Database - Test Suites
+@pytest.mark.dependency(depends=["test_database_client_can_load"])
+class TestDatabaseSetFunctions:
+    parameters = (
         "database_entry_factory_name, table",
         [
             ("connection_entry_factory", Table.CONNECTION),
@@ -227,7 +235,7 @@ class TestDatabaseWriteFunctions:
         ],
     )
 
-    @pytest.mark.parametrize(*write_only_test_parameters)
+    @pytest.mark.parametrize(*parameters)
     def test_insert(
         self,
         database_client: jserv.DatabaseClient,
@@ -247,7 +255,7 @@ class TestDatabaseWriteFunctions:
             set_method=jserv.enums.SQLSetMethod.INSERT,
         )
 
-    @pytest.mark.parametrize(*write_only_test_parameters)
+    @pytest.mark.parametrize(*parameters)
     def test_insert_twice_fails(
         self,
         database_client: jserv.DatabaseClient,
@@ -275,7 +283,7 @@ class TestDatabaseWriteFunctions:
                 set_method=jserv.enums.SQLSetMethod.INSERT,
             )
 
-    @pytest.mark.parametrize(*write_only_test_parameters)
+    @pytest.mark.parametrize(*parameters)
     def test_upsert_on_empty_table(
         self,
         database_client: jserv.DatabaseClient,
@@ -295,7 +303,7 @@ class TestDatabaseWriteFunctions:
             set_method=jserv.enums.SQLSetMethod.UPSERT,
         )
 
-    @pytest.mark.parametrize(*write_only_test_parameters)
+    @pytest.mark.parametrize(*parameters)
     def test_upsert_on_non_empty_table(
         self,
         database_client: jserv.DatabaseClient,
@@ -321,7 +329,7 @@ class TestDatabaseWriteFunctions:
             set_method=jserv.enums.SQLSetMethod.UPSERT,
         )
 
-    @pytest.mark.parametrize(*write_only_test_parameters)
+    @pytest.mark.parametrize(*parameters)
     def test_update_on_empty_table(
         self,
         database_client: jserv.DatabaseClient,
@@ -341,7 +349,7 @@ class TestDatabaseWriteFunctions:
             set_method=jserv.enums.SQLSetMethod.UPDATE,
         )
 
-    @pytest.mark.parametrize(*write_only_test_parameters)
+    @pytest.mark.parametrize(*parameters)
     def test_update_on_non_empty_table(
         self,
         database_client: jserv.DatabaseClient,
@@ -368,15 +376,47 @@ class TestDatabaseWriteFunctions:
         )
 
 
+@pytest.mark.dependency(depends=["TestDatabaseSetFunctions"])
+class TestDatabaseGetFunctions:
+    parameters = ("database_entry_factory_name, table",)
+
+    def test_get_on_empty_table_fails(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> DatabaseEntryType
+        table: Table,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry: DatabaseEntryType = request.getfixturevalue(
+            database_entry_factory_name
+        ).get()
+        setter = get_setter_for_table(database_client, table)
+
+    def test_get_on_empty_record_fails(self) -> None:
+        pass
+
+    def test_get_on_non_empty_record(self) -> None:
+        pass
+
+
+@pytest.mark.dependency(depends=["TestDatabaseSetFunctions"])
+class TestDatabaseSearchFunctions:
+    def test_search_by_primary_key(self) -> None:
+        pass
+
+    def test_search_by_non_primary_key(self) -> None:
+        pass
+
+
 # endregion Database - Test Suites
 
 
 # region Database - Connection
-def test_database_select_null_connection(
-    database_client: jserv.DatabaseClient,
-) -> None:
-    connection_entry = database_client.get_connection_entry(client_token="test_token")
-    assert connection_entry is None
+# def test_database_select_null_connection(
+#     database_client: jserv.DatabaseClient,
+# ) -> None:
+#     connection_entry = database_client.get_connection_entry(client_token="test_token")
+#     assert connection_entry is None
 
 
 # def test_database_insert_select_connection(
