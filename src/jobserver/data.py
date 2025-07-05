@@ -116,16 +116,14 @@ class _DatabaseEntry:
     _table: enums.DatabaseTable
     _primary_keys: list[str]
 
-    def __init__(
-        self,
-        table: enums.DatabaseTable,
-        primary_keys: list[str],
-    ) -> None:
-        self._table = table
-        self._primary_keys = primary_keys
+    def __init__(self, *args, **kwargs) -> None:
+        pass
 
     def __eq__(self, value) -> bool:
         raise NotImplementedError("Subclasses of _DatabaseEntry must implement __eq__ method.")
+
+    def __ne__(self, value) -> bool:
+        return not self.__eq__(value)
 
     def get_fields(self) -> dict[str, str | int | float]:
         fields: dict[str, str | int | float] = {}
@@ -150,6 +148,9 @@ class _DatabaseEntry:
 
 class DatabaseEntry:
     class Connection(_DatabaseEntry):
+        _table = enums.DatabaseTable.CONNECTION
+        _primary_keys = ["client_token"]
+
         client_token: str  # Primary key
         init_time: dt.datetime
         last_message_time: dt.datetime | None
@@ -169,10 +170,6 @@ class DatabaseEntry:
             self.last_message_time = last_message_time
             self.num_messages = num_messages
             self.client_ip = client_ip
-            super().__init__(
-                table=enums.DatabaseTable.CONNECTION,
-                primary_keys=["client_token"],
-            )
 
         def __eq__(self, value) -> bool:
             return (
@@ -184,6 +181,9 @@ class DatabaseEntry:
             )
 
     class Error(_DatabaseEntry):
+        _table = enums.DatabaseTable.ERROR
+        _primary_keys = ["error_id"]
+
         error_id: str  # Primary key
         error_time: dt.datetime
         severity_level: enums.ErrorSeverity
@@ -206,10 +206,7 @@ class DatabaseEntry:
             self.traceback = traceback
             self.job_id = job_id
             self.client_token = client_token
-            super().__init__(
-                table=enums.DatabaseTable.ERROR,
-                primary_keys=["error_id"],
-            )
+            super().__init__()
 
         def __eq__(self, value) -> bool:
             return (
@@ -222,6 +219,9 @@ class DatabaseEntry:
             )
 
     class JobStatus(_DatabaseEntry):
+        _table = enums.DatabaseTable.JOB_STATUS
+        _primary_keys = ["job_id"]
+
         job_id: str  # Primary key
         init_time: dt.datetime
         archived: bool
@@ -235,15 +235,14 @@ class DatabaseEntry:
             self.job_id = job_id
             self.init_time = init_time
             self.archived = archived
-            super().__init__(
-                table=enums.DatabaseTable.JOB_STATUS,
-                primary_keys=["job_id"],
-            )
 
         def __eq__(self, value) -> bool:
             return self.job_id == value.job_id and self.init_time == value.init_time
 
     class JobUpdate(_DatabaseEntry):
+        _table = enums.DatabaseTable.JOB_UPDATE
+        _primary_keys = ["job_id", "update_time"]
+
         job_id: str  # Primary key
         update_time: dt.datetime  # Primary key
         new_state: int
@@ -266,10 +265,6 @@ class DatabaseEntry:
             self.comment = comment
             self.client_token = client_token
             self.error_id = error_id
-            super().__init__(
-                table=enums.DatabaseTable.JOB_UPDATE,
-                primary_keys=["job_id", "update_time"],
-            )
 
         def __eq__(self, value) -> bool:
             return (
@@ -280,6 +275,9 @@ class DatabaseEntry:
             )
 
     class ServerUpdate(_DatabaseEntry):
+        _table = enums.DatabaseTable.SERVER_UPDATE
+        _primary_keys = ["update_time"]
+
         update_time: dt.datetime  # Primary key
         type: int
         subtype: int
@@ -302,20 +300,20 @@ class DatabaseEntry:
             self.comment = comment
             self.job_id = job_id
             self.client_token = client_token
-            super().__init__(
-                table=enums.DatabaseTable.SERVER_UPDATE,
-                primary_keys=["update_time"],
-            )
 
         def __eq__(self, value) -> bool:
             return (
-                self.update_time == value.time
+                self.update_time == value.update_time
                 and self.type == value.type
                 and self.subtype == value.subtype
                 and self.comment == value.comment
                 and self.job_id == value.job_id
                 and self.client_token == value.client_token
             )
+
+
+def get_database_entry_type(table: enums.DatabaseTable) -> type[_DatabaseEntry]:
+    return getattr(DatabaseEntry, table.value)
 
 
 class DatabaseClient:
@@ -393,6 +391,34 @@ class DatabaseClient:
         cursor = self._db_connection.cursor()
         cursor.execute(query, values)
         self._db_connection.commit()
+
+    def get_entry(
+        self,
+        table: enums.DatabaseTable,
+        # database_entry_type: type[_DatabaseEntry],
+        primary_key_fields: dict[str, str | int | float],
+    ) -> _DatabaseEntry | None:
+        database_entry_type = get_database_entry_type(table=table)
+        table = database_entry_type._table
+        columns = {_ for _ in database_entry_type.__dict__.keys() if not _.startswith("_")}
+
+        query = "SELECT {} FROM {} WHERE {}".format(
+            ", ".join(columns),
+            table.value,
+            " AND ".join(f"{key} = ?" for key in primary_key_fields.keys()),
+        )
+        cursor = self._db_connection.cursor()
+        cursor.execute(query, list(primary_key_fields.values()))
+
+        kwargs = {}
+        row = cursor.fetchone()
+        if row is None:
+            return None
+
+        for column, value in zip(columns, row):
+            kwargs[column] = value
+        database_entry = database_entry_type(**kwargs)
+        return database_entry
 
     # region Connection
     def get_connection_entry(

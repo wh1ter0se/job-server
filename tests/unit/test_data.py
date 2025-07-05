@@ -200,7 +200,7 @@ def get_setter_for_table(
 # endregion Database - Test Suites
 
 
-# endregion Database - Test Suites
+# region Database - Test Suites
 database_entry_facory_parameters = (
     "database_entry_factory_name",
     [
@@ -213,7 +213,7 @@ database_entry_facory_parameters = (
 )
 
 
-# @pytest.mark.dependency(depends=["test_database_client_can_load"])
+@pytest.mark.dependency(depends=["test_database_client_can_load"])
 class TestDatabaseSetFunctions:
     @pytest.mark.parametrize(*database_entry_facory_parameters)
     def test_insert(
@@ -343,15 +343,80 @@ class TestDatabaseSetFunctions:
         )
 
 
-@pytest.mark.dependency(depends=["TestDatabaseSetFunctions"])
+# @pytest.mark.dependency(depends=["test_database_client_can_load"])
 class TestDatabaseGetFunctions:
     parameters = ("database_entry_factory_name, table",)
 
+    @pytest.mark.parametrize(*database_entry_facory_parameters)
     def test_get_on_empty_table_fails(
         self,
         database_client: jserv.DatabaseClient,
         database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
-        table: jserv.enums.DatabaseTable,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
+            database_entry_factory_name
+        )
+        database_entry = database_entry_factory.get()
+
+        # Get entry's primary key(s)
+        primary_key_fields = {
+            key: val
+            for key, val in database_entry.get_fields().items()
+            if key in database_entry.get_primary_keys()
+        }
+
+        # Get entry from database by PK
+        with pytest.raises(Exception):
+            retrieved_entry = database_client.get_entry(
+                table=database_entry.get_table(),
+                primary_key_fields=primary_key_fields,
+            )
+            assert retrieved_entry is not None
+
+    @pytest.mark.xfail()
+    @pytest.mark.parametrize(*database_entry_facory_parameters)
+    def test_get_on_empty_record_fails(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
+            database_entry_factory_name
+        )
+        database_entry_1 = database_entry_factory.get()
+        database_entry_2 = database_entry_factory.get()
+
+        # Ensure entries are different
+        assert database_entry_1.get_table() == database_entry_2.get_table()
+        assert database_entry_1 != database_entry_2
+
+        # Set new entry
+        database_client.set_entry(
+            entry=database_entry_1,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
+
+        # Get a different entry's primary key(s)
+        primary_key_fields = {
+            key: val
+            for key, val in database_entry_2.get_fields().items()
+            if key in database_entry_2.get_primary_keys()
+        }
+
+        # Get second entry from database by PK
+        database_client.get_entry(
+            table=database_entry_2.get_table(),
+            primary_key_fields=primary_key_fields,
+        )
+
+    @pytest.mark.xfail()
+    @pytest.mark.parametrize(*database_entry_facory_parameters)
+    def test_get_on_non_empty_record(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -373,43 +438,21 @@ class TestDatabaseGetFunctions:
         }
 
         # Get entry from database by PK
-        with pytest.raises(Exception):
-            database_client.get_entry(
-                entry=database_entry,
-                primary_key_fields=primary_key_fields,
-            )
-
-    def test_get_on_empty_record_fails(self) -> None:
-        pass
-
-    def test_get_on_non_empty_record(self) -> None:
-        pass
+        database_client.get_entry(
+            table=database_entry.get_table(),
+            primary_key_fields=primary_key_fields,
+        )
 
 
-@pytest.mark.dependency(depends=["TestDatabaseSetFunctions"])
+@pytest.mark.dependency(depends=["test_database_client_can_load"])
 class TestDatabaseSearchFunctions:
+    @pytest.mark.xfail()
     def test_search_by_primary_key(self) -> None:
         pass
 
+    @pytest.mark.xfail()
     def test_search_by_non_primary_key(self) -> None:
         pass
-
-
-def test_get_columns() -> None:
-    class MyParentClass:
-        def __init__(self, my_base_arg1: str) -> None:
-            self.my_base_arg1 = my_base_arg1
-
-    class MyClass(MyParentClass):
-        def __init__(self, my_arg1: str, my_arg2: str, my_arg3: str = "default_value") -> None:
-            self.my_arg1 = my_arg1
-            self.my_arg2 = my_arg2
-            self.my_arg3 = my_arg3
-            super().__init__(my_base_arg1="base_value")
-
-    my_instance = MyClass(my_arg1="value1", my_arg2="value2")
-    columns = my_instance.__dict__.keys()
-    x = columns
 
 
 # endregion Database - Test Suites
