@@ -96,11 +96,11 @@ class ConfigValue(Enum):
 
 
 class DatabaseTable(Enum):
-    CONNECTION = 1
-    ERROR = 2
-    JOB_STATUS = 3
-    JOB_UPDATE = 4
-    SERVER_UPDATE = 5
+    CONNECTION = "Connection"
+    ERROR = "Error"
+    JOB_STATUS = "JobStatus"
+    JOB_UPDATE = "JobUpdate"
+    SERVER_UPDATE = "ServerUpdate"
 
 
 class SQLSetMethod(Enum):

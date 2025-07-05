@@ -113,14 +113,39 @@ class ConfigClient:
 
 
 class _DatabaseEntry:
-    table: enums.DatabaseTable
-    primary_keys: list[str]
+    _table: enums.DatabaseTable
+    _primary_keys: list[str]
 
-    def __init__(self, primary_keys: list[str]) -> None:
-        self.primary_keys = primary_keys
+    def __init__(
+        self,
+        table: enums.DatabaseTable,
+        primary_keys: list[str],
+    ) -> None:
+        self._table = table
+        self._primary_keys = primary_keys
 
     def __eq__(self, value) -> bool:
         raise NotImplementedError("Subclasses of _DatabaseEntry must implement __eq__ method.")
+
+    def get_fields(self) -> dict[str, str | int | float]:
+        fields: dict[str, str | int | float] = {}
+        for key in self.__dict__.keys():
+            if hasattr(self, key) and not key.startswith("_"):
+                value = getattr(self, key)
+                if value is not None:
+                    if isinstance(value, dt.datetime):
+                        fields[key] = int(value.timestamp() * 1e6)
+                    elif isinstance(value, enums.ErrorSeverity):
+                        fields[key] = value.value
+                    else:
+                        fields[key] = value
+        return fields
+
+    def get_table(self) -> enums.DatabaseTable:
+        return self._table
+
+    def get_primary_keys(self) -> list[str]:
+        return self._primary_keys
 
 
 class DatabaseEntry:
@@ -144,7 +169,10 @@ class DatabaseEntry:
             self.last_message_time = last_message_time
             self.num_messages = num_messages
             self.client_ip = client_ip
-            super().__init__(primary_keys=["client_token"])
+            super().__init__(
+                table=enums.DatabaseTable.CONNECTION,
+                primary_keys=["client_token"],
+            )
 
         def __eq__(self, value) -> bool:
             return (
@@ -169,16 +197,19 @@ class DatabaseEntry:
             error_time: dt.datetime,
             severity_level: enums.ErrorSeverity,
             traceback: str,
-            job_hash: str | None,
+            job_id: str | None,
             client_token: str | None,
         ) -> None:
             self.error_id = error_id
             self.error_time = error_time
             self.severity_level = severity_level
             self.traceback = traceback
-            self.job_id = job_hash
+            self.job_id = job_id
             self.client_token = client_token
-            super().__init__(primary_keys=["error_id"])
+            super().__init__(
+                table=enums.DatabaseTable.ERROR,
+                primary_keys=["error_id"],
+            )
 
         def __eq__(self, value) -> bool:
             return (
@@ -204,7 +235,10 @@ class DatabaseEntry:
             self.job_id = job_id
             self.init_time = init_time
             self.archived = archived
-            super().__init__(primary_keys=["job_id"])
+            super().__init__(
+                table=enums.DatabaseTable.JOB_STATUS,
+                primary_keys=["job_id"],
+            )
 
         def __eq__(self, value) -> bool:
             return self.job_id == value.job_id and self.init_time == value.init_time
@@ -214,6 +248,8 @@ class DatabaseEntry:
         update_time: dt.datetime  # Primary key
         new_state: int
         comment: str
+        client_token: str | None  # FK
+        error_id: str | None  # FK
 
         def __init__(
             self,
@@ -221,12 +257,19 @@ class DatabaseEntry:
             update_time: dt.datetime,
             new_state: int,
             comment: str,
+            client_token: str | None = None,
+            error_id: str | None = None,
         ) -> None:
             self.job_id = job_id
             self.update_time = update_time
             self.new_state = new_state
             self.comment = comment
-            super().__init__(primary_keys=["job_id", "update_time"])
+            self.client_token = client_token
+            self.error_id = error_id
+            super().__init__(
+                table=enums.DatabaseTable.JOB_UPDATE,
+                primary_keys=["job_id", "update_time"],
+            )
 
         def __eq__(self, value) -> bool:
             return (
@@ -237,7 +280,7 @@ class DatabaseEntry:
             )
 
     class ServerUpdate(_DatabaseEntry):
-        time: dt.datetime  # Primary key
+        update_time: dt.datetime  # Primary key
         type: int
         subtype: int
         comment: str
@@ -246,24 +289,27 @@ class DatabaseEntry:
 
         def __init__(
             self,
-            time: dt.datetime,
+            update_time: dt.datetime,
             type: int,
             subtype: int,
             comment: str,
             job_id: str | None,
             client_token: str | None,
         ) -> None:
-            self.time = time
+            self.update_time = update_time
             self.type = type
             self.subtype = subtype
             self.comment = comment
             self.job_id = job_id
             self.client_token = client_token
-            super().__init__(primary_keys=["time"])
+            super().__init__(
+                table=enums.DatabaseTable.SERVER_UPDATE,
+                primary_keys=["update_time"],
+            )
 
         def __eq__(self, value) -> bool:
             return (
-                self.time == value.time
+                self.update_time == value.time
                 and self.type == value.type
                 and self.subtype == value.subtype
                 and self.comment == value.comment
@@ -275,7 +321,7 @@ class DatabaseEntry:
 class DatabaseClient:
 
     config: ConfigClient
-    _connection: sqlite3.Connection
+    _db_connection: sqlite3.Connection
 
     def __init__(self, config: ConfigClient):
         self.config = config
@@ -292,25 +338,68 @@ class DatabaseClient:
             db_file_path = Path(_db_path)
             if not db_file_path.exists():
                 shutil.copyfile(src=DATABASE_TEMPLATE_FILE_PATH, dst=db_file_path)
-            self._connection = sqlite3.connect(db_file_path)
+            self._db_connection = sqlite3.connect(db_file_path)
             print(f"Connected to database: {db_file_path}")
         except sqlite3.Error as e:
             print(f"Error connecting to database: {e}")
             raise e
 
     def disconnect(self) -> None:
-        self._connection.close()
+        self._db_connection.close()
 
     # endregion Private
 
     # region Public
-    # region  Table Getters/Setters
-    # region   Connection
+    def set_entry(
+        self,
+        entry: _DatabaseEntry,
+        set_method: enums.SQLSetMethod,
+    ) -> None:
+        entries = entry.get_fields()
+        columns = list(entries.keys())
+        values = list(entries.values())
+
+        primary_keys = entry.get_primary_keys()
+
+        table_name = entry.get_table().value
+
+        match set_method:
+            case enums.SQLSetMethod.INSERT:
+                query = "INSERT INTO {} ({}) VALUES ({})".format(
+                    table_name,
+                    ", ".join(columns),
+                    ", ".join("?" * len(columns)),
+                )
+            case enums.SQLSetMethod.UPDATE:
+                query = "UPDATE {} SET {} WHERE {}".format(
+                    table_name,
+                    ", ".join(f"{column} = ?" for column in columns if column not in primary_keys),
+                    " AND ".join(f"{column} = ?" for column in primary_keys),
+                )
+            case enums.SQLSetMethod.UPSERT:
+                query = "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT ({}) DO UPDATE SET {}".format(
+                    table_name,
+                    ", ".join(columns),
+                    ", ".join("?" * len(columns)),
+                    ", ".join(primary_keys),
+                    ", ".join(
+                        f"{column} = EXCLUDED.{column}"
+                        for column in columns
+                        if column not in primary_keys
+                    ),
+                )
+
+        # Execute the query and commit the changes
+        cursor = self._db_connection.cursor()
+        cursor.execute(query, values)
+        self._db_connection.commit()
+
+    # region Connection
     def get_connection_entry(
         self,
         client_token: str,
     ) -> DatabaseEntry.Connection | None:
-        cursor = self._connection.cursor()
+        cursor = self._db_connection.cursor()
         query_result = cursor.execute(
             "SELECT * FROM Connection WHERE client_token = ?", (client_token,)
         )
@@ -336,7 +425,7 @@ class DatabaseClient:
         limit: int = 0,
         offset: int = 0,
     ) -> list[DatabaseEntry.Connection] | None:
-        cursor = self._connection.cursor()
+        cursor = self._db_connection.cursor()
         conditions: list[str] = []
         parameters: list[str] = []
         if before is not None:
@@ -414,9 +503,9 @@ class DatabaseClient:
                 )
 
         # Execute the query and commit the changes
-        cursor = self._connection.cursor()
+        cursor = self._db_connection.cursor()
         cursor.execute(query, values)
-        self._connection.commit()
+        self._db_connection.commit()
 
     # endregion Connection
 
@@ -473,9 +562,9 @@ class DatabaseClient:
                 )
 
         # Execute the query and commit the changes
-        cursor = self._connection.cursor()
+        cursor = self._db_connection.cursor()
         cursor.execute(query, values)
-        self._connection.commit()
+        self._db_connection.commit()
 
     # endregion Error
 
@@ -484,7 +573,7 @@ class DatabaseClient:
         self,
         job_id: str,
     ) -> DatabaseEntry.JobStatus | None:
-        cursor = self._connection.cursor()
+        cursor = self._db_connection.cursor()
         query = "SELECT * FROM JobStatus WHERE job_id = ?"
         cursor.execute(query, (job_id,))
         row = cursor.fetchone()
@@ -501,7 +590,7 @@ class DatabaseClient:
         job_status_entry: DatabaseEntry.JobStatus,
         set_method=enums.SQLSetMethod.INSERT,
     ) -> None:
-        cursor = self._connection.cursor()
+        cursor = self._db_connection.cursor()
         columns = ["job_id", "init_time", "archived"]
         values = [
             job_status_entry.job_id,
@@ -526,7 +615,7 @@ class DatabaseClient:
                     ),
                 )
         cursor.execute(query, values)
-        self._connection.commit()
+        self._db_connection.commit()
 
     # endregion Job Status
 
@@ -543,7 +632,7 @@ class DatabaseClient:
         job_update_entry: DatabaseEntry.JobUpdate,
         set_method=enums.SQLSetMethod.INSERT,
     ) -> None:
-        cursor = self._connection.cursor()
+        cursor = self._db_connection.cursor()
         columns = ["job_id", "update_time", "new_state", "comment"]
         values = [
             job_update_entry.job_id,
@@ -572,7 +661,7 @@ class DatabaseClient:
                 )
 
         cursor.execute(query, values)
-        self._connection.commit()
+        self._db_connection.commit()
 
     # endregion Job Update
 
@@ -588,10 +677,10 @@ class DatabaseClient:
         server_update_entry: DatabaseEntry.ServerUpdate,
         set_method=enums.SQLSetMethod.INSERT,
     ) -> None:
-        cursor = self._connection.cursor()
+        cursor = self._db_connection.cursor()
         columns = ["update_time", "type", "subtype", "comment"]
         values = [
-            int(server_update_entry.time.timestamp()),  # TODO: figure out why type is strict
+            int(server_update_entry.update_time.timestamp()),  # TODO: figure out why type is strict
             server_update_entry.type,
             server_update_entry.subtype,
             server_update_entry.comment,
@@ -626,8 +715,7 @@ class DatabaseClient:
                 )
 
         cursor.execute(query, values)
-        self._connection.commit()
+        self._db_connection.commit()
 
     # endregion Server Update
-    # endregion Table Getters/Setters
     # endregion Public
