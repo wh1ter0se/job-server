@@ -374,7 +374,6 @@ class TestDatabaseGetFunctions:
             )
             assert retrieved_entry is not None
 
-    @pytest.mark.xfail()
     @pytest.mark.parametrize(*database_entry_facory_parameters)
     def test_get_on_empty_record_fails(
         self,
@@ -411,7 +410,6 @@ class TestDatabaseGetFunctions:
             primary_key_fields=primary_key_fields,
         )
 
-    @pytest.mark.xfail()
     @pytest.mark.parametrize(*database_entry_facory_parameters)
     def test_get_on_non_empty_record(
         self,
@@ -445,6 +443,58 @@ class TestDatabaseGetFunctions:
 
         assert retrieved_entry is not None
         assert retrieved_entry == database_entry
+
+    @pytest.mark.parametrize(*database_entry_facory_parameters)
+    def test_get_on_multiple_records(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
+            database_entry_factory_name
+        )
+
+        # Create two different entries
+        database_entry_1 = database_entry_factory.get()
+        database_entry_2 = database_entry_factory.get()
+
+        # Ensure entries are different
+        assert database_entry_1 != database_entry_2
+
+        # Insert both entries
+        database_client.set_entry(
+            entry=database_entry_1,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
+        database_client.set_entry(
+            entry=database_entry_2,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
+
+        # Get first entry from database by PK
+        retrieved_entry_1 = database_client.get_entry(
+            table=database_entry_1.get_table(),
+            primary_key_fields={
+                key: val
+                for key, val in database_entry_1.get_fields().items()
+                if key in database_entry_1.get_primary_keys()
+            },
+        )
+        assert retrieved_entry_1 is not None
+        assert retrieved_entry_1 == database_entry_1
+
+        # Get second entry from database by PK
+        retrieved_entry_2 = database_client.get_entry(
+            table=database_entry_2.get_table(),
+            primary_key_fields={
+                key: val
+                for key, val in database_entry_2.get_fields().items()
+                if key in database_entry_2.get_primary_keys()
+            },
+        )
+        assert retrieved_entry_2 is not None
+        assert retrieved_entry_2 == database_entry_2
 
 
 @pytest.mark.dependency(depends=["test_database_client_can_load"])

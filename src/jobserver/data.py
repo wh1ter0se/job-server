@@ -4,6 +4,7 @@ import shutil
 import sqlite3
 import datetime as dt
 import importlib.resources
+from enum import Enum
 from typing import Any
 from pathlib import Path
 from . import enums
@@ -160,7 +161,7 @@ class _DatabaseEntry:
                 if value is not None:
                     if isinstance(value, dt.datetime):
                         fields[key] = int(value.timestamp() * 1e6)
-                    elif isinstance(value, enums.ErrorSeverity):
+                    elif isinstance(value, Enum):
                         fields[key] = value.value
                     else:
                         fields[key] = value
@@ -187,7 +188,7 @@ class DatabaseEntry:
         def __init__(
             self,
             client_token: str,
-            init_time: dt.datetime,
+            init_time: dt.datetime | int | float | str,
             last_message_time: dt.datetime | None,
             num_messages: int,
             client_ip: str,
@@ -197,7 +198,7 @@ class DatabaseEntry:
             self.last_message_time = (
                 self._parse_timestamp(last_message_time) if last_message_time is not None else None
             )
-            self.num_messages = num_messages
+            self.num_messages = int(num_messages)
             self.client_ip = client_ip
 
         def __eq__(self, value) -> bool:
@@ -213,7 +214,7 @@ class DatabaseEntry:
         _table = enums.DatabaseTable.ERROR
         _primary_keys = ["error_id"]
 
-        error_id: str  # Primary key
+        error_id: int  # Primary key
         error_time: dt.datetime
         severity_level: enums.ErrorSeverity
         traceback: str
@@ -222,46 +223,54 @@ class DatabaseEntry:
 
         def __init__(
             self,
-            error_id: str,
-            error_time: dt.datetime,
-            severity_level: enums.ErrorSeverity,
+            error_id: int | str,
+            error_time: dt.datetime | int | float | str,
+            severity_level: enums.ErrorSeverity | int,
             traceback: str,
             job_id: str | None,
             client_token: str | None,
         ) -> None:
-            self.error_id = error_id
+            self.error_id = int(error_id)
             self.error_time = self._parse_timestamp(error_time)
-            self.severity_level = severity_level
+            self.severity_level = enums.ErrorSeverity(severity_level)
             self.traceback = traceback
             self.job_id = job_id
             self.client_token = client_token
             super().__init__()
 
         def __eq__(self, value) -> bool:
-            return (
-                self.error_id == value.error_id
-                and self.error_time == value.error_time
-                and self.severity_level == value.severity_level
-                and self.traceback == value.traceback
-                and self.job_id == value.job_hash
-                and self.client_token == value.client_token
-            )
+            success = True
+            success &= self.error_id == value.error_id
+            success &= self.error_time == value.error_time
+            success &= self.severity_level == value.severity_level
+            success &= self.traceback == value.traceback
+            success &= self.job_id == value.job_id
+            success &= self.client_token == value.client_token
+            return success
+            # return (
+            #     self.error_id == value.error_id
+            #     and self.error_time == value.error_time
+            #     and self.severity_level == value.severity_level
+            #     and self.traceback == value.traceback
+            #     and self.job_id == value.job_hash
+            #     and self.client_token == value.client_token
+            # )
 
     class JobStatus(_DatabaseEntry):
         _table = enums.DatabaseTable.JOB_STATUS
         _primary_keys = ["job_id"]
 
-        job_id: str  # Primary key
+        job_id: int  # Primary key
         init_time: dt.datetime
         archived: bool
 
         def __init__(
             self,
-            job_id: str,
+            job_id: int | str,
             init_time: dt.datetime | int | float | str,
             archived: bool,
         ) -> None:
-            self.job_id = job_id
+            self.job_id = int(job_id)
             self.init_time = self._parse_timestamp(init_time)
             self.archived = archived
 
@@ -272,28 +281,28 @@ class DatabaseEntry:
         _table = enums.DatabaseTable.JOB_UPDATE
         _primary_keys = ["job_id", "update_time"]
 
-        job_id: str  # Primary key
+        job_id: int  # Primary key
         update_time: dt.datetime  # Primary key
         new_state: int
         comment: str
         client_token: str | None  # FK
-        error_id: str | None  # FK
+        error_id: int | None  # FK
 
         def __init__(
             self,
-            job_id: str,
-            update_time: dt.datetime | int,
-            new_state: int,
+            job_id: int | str,
+            update_time: dt.datetime | int | float | str,
+            new_state: int | str,
             comment: str,
             client_token: str | None = None,
-            error_id: str | None = None,
+            error_id: int | str | None = None,
         ) -> None:
-            self.job_id = job_id
+            self.job_id = int(job_id)
             self.update_time = self._parse_timestamp(update_time)
-            self.new_state = new_state
-            self.comment = comment
+            self.new_state = int(new_state)
+            self.comment = str(comment)
             self.client_token = client_token
-            self.error_id = error_id
+            self.error_id = int(error_id) if error_id is not None else None
 
         def __eq__(self, value) -> bool:
             return (
@@ -313,23 +322,23 @@ class DatabaseEntry:
         type: int
         subtype: int
         comment: str
-        job_id: str | None  # FK
+        job_id: int | None  # FK
         client_token: str | None  # FK
 
         def __init__(
             self,
-            update_time: dt.datetime | int,
-            type: int,
-            subtype: int,
+            update_time: dt.datetime | int | float | str,
+            type: int | str,
+            subtype: int | str,
             comment: str,
-            job_id: str | None,
+            job_id: int | str | None,
             client_token: str | None,
         ) -> None:
             self.update_time = self._parse_timestamp(update_time)
-            self.type = type
-            self.subtype = subtype
-            self.comment = comment
-            self.job_id = job_id
+            self.type = int(type)
+            self.subtype = int(subtype)
+            self.comment = str(comment)
+            self.job_id = int(job_id) if job_id is not None else None
             self.client_token = client_token
 
         def __eq__(self, value) -> bool:
@@ -352,7 +361,11 @@ class DatabaseClient:
     config: ConfigClient
     _db_connection: sqlite3.Connection
 
-    def __init__(self, config: ConfigClient):
+    def __init__(
+        self,
+        config: ConfigClient,
+        create_new_if_missing: bool = True,
+    ) -> None:
         self.config = config
         self._connect()
 
@@ -360,14 +373,96 @@ class DatabaseClient:
         self.disconnect()
 
     # region Private
-    def _connect(self) -> None:
+    def _create_new_database_file(self) -> None:
+        _db_path: str = self.config.get(key=enums.ConfigValue.DATABASE_PATH.value)
+        db_file_path = Path(_db_path)
+        if db_file_path.exists():
+            raise ValueError(f"Database file already exists: {db_file_path}")
+        create_connection_table_query = """
+        CREATE TABLE "Connection" (
+            client_token TEXT NOT NULL,
+            init_time INTEGER NOT NULL,
+            last_message_time INTEGER,
+            num_messages INTEGER NOT NULL, 
+            client_ip TEXT NOT NULL,
+            CONSTRAINT Client_PK PRIMARY KEY (client_token)
+        );
+        """
+        generate_error_table_query = """
+        CREATE TABLE Error (
+            error_id INTEGER NOT NULL,
+            error_time INTEGER NOT NULL,
+            severity_level INTEGER NOT NULL,
+            traceback TEXT,
+            job_id INTEGER,
+            client_token TEXT,
+            CONSTRAINT Errors_PK PRIMARY KEY (error_id),
+            CONSTRAINT Errors_JobStatus_FK FOREIGN KEY (job_id) REFERENCES JobStatus(job_id),
+            CONSTRAINT Error_Connection_FK FOREIGN KEY (client_token) REFERENCES "Connection"(client_token)
+        );          
+        """
+        create_job_status_table_query = """
+        CREATE TABLE JobStatus (
+            job_id INTEGER NOT NULL,
+            init_time INTEGER NOT NULL,
+            archived INTEGER NOT NULL,
+            CONSTRAINT JobStatus_PK PRIMARY KEY (job_id)
+        );
+        """
+        create_job_update_table_query = """
+        CREATE TABLE JobUpdate (
+            job_id INTEGER NOT NULL,
+            update_time INTEGER NOT NULL,
+            new_state INTEGER NOT NULL,
+            comment TEXT,
+            client_token TEXT,
+            error_id INTEGER,
+            CONSTRAINT JobUpdates_PK PRIMARY KEY (job_id,update_time),
+            CONSTRAINT JobUpdate_Connection_FK FOREIGN KEY (client_token) REFERENCES "Connection"(client_token),
+            CONSTRAINT JobUpdates_JobStatus_FK FOREIGN KEY (job_id) REFERENCES JobStatus(job_id),
+            CONSTRAINT JobUpdate_Error_FK FOREIGN KEY (error_id) REFERENCES Error(error_id)
+        );
+        """
+        create_server_update_table_query = """
+        CREATE TABLE ServerUpdate (
+            update_time INTEGER NOT NULL,
+            type INTEGER NOT NULL,
+            subtype INTEGER,
+            comment TEXT,
+            job_id INTEGER,
+            client_token TEXT,
+            CONSTRAINT ServerUpdates_PK PRIMARY KEY (update_time),
+            CONSTRAINT ServerUpdates_JobStatus_FK FOREIGN KEY (job_id) REFERENCES JobStatus(job_id),
+            CONSTRAINT ServerUpdate_Connection_FK FOREIGN KEY (client_token) REFERENCES "Connection"(client_token)
+        );
+        """
+        self._db_connection = sqlite3.connect(db_file_path)
+        cursor = self._db_connection.cursor()
+        cursor.execute(create_connection_table_query)
+        cursor.execute(generate_error_table_query)
+        cursor.execute(create_job_status_table_query)
+        cursor.execute(create_job_update_table_query)
+        cursor.execute(create_server_update_table_query)
+        self._db_connection.commit()
+
+    def _connect(
+        self,
+        create_new_if_missing: bool = True,
+    ) -> None:
         """Create a database connection to the SQLite database specified by db_file."""
         try:
             _db_path: str = self.config.get(key=enums.ConfigValue.DATABASE_PATH.value)
             db_file_path = Path(_db_path)
-            if not db_file_path.exists():
-                shutil.copyfile(src=DATABASE_TEMPLATE_FILE_PATH, dst=db_file_path)
-            self._db_connection = sqlite3.connect(db_file_path)
+            if db_file_path.exists():
+                # Connect to existing database
+                self._db_connection = sqlite3.connect(db_file_path)
+            elif create_new_if_missing:
+                # Create a new database file
+                self._create_new_database_file()
+            else:
+                # Raise an error if the database file does not exist
+                raise FileNotFoundError(f"Database file does not exist: {db_file_path}")
+                # shutil.copyfile(src=DATABASE_TEMPLATE_FILE_PATH, dst=db_file_path)
             print(f"Connected to database: {db_file_path}")
         except sqlite3.Error as e:
             print(f"Error connecting to database: {e}")
