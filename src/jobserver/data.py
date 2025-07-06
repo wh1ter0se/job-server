@@ -533,18 +533,23 @@ class DatabaseClient:
             table.value,
             " AND ".join(f"{key} = ?" for key in primary_key_fields.keys()),
         )
-        cursor = self._db_connection.cursor()
-        cursor.execute(query, list(primary_key_fields.values()))
 
-        kwargs = {}
-        row = cursor.fetchone()
-        if row is None:
+        try:
+            cursor = self._db_connection.cursor()
+            cursor.execute(query, list(primary_key_fields.values()))
+
+            kwargs = {}
+            row = cursor.fetchone()
+            if row is None:
+                return None
+
+            for column, value in zip(columns, row):
+                kwargs[column] = value
+            database_entry = database_entry_type(**kwargs)
+            return database_entry
+        except sqlite3.Error as e:
+            print(f"Error getting entry: {e}")
             return None
-
-        for column, value in zip(columns, row):
-            kwargs[column] = value
-        database_entry = database_entry_type(**kwargs)
-        return database_entry
 
     def search_entries(
         self,

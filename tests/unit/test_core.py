@@ -1,0 +1,2 @@
+class TestJobServerEndpoints:
+    pass
