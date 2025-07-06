@@ -438,10 +438,13 @@ class TestDatabaseGetFunctions:
         }
 
         # Get entry from database by PK
-        database_client.get_entry(
+        retrieved_entry = database_client.get_entry(
             table=database_entry.get_table(),
             primary_key_fields=primary_key_fields,
         )
+
+        assert retrieved_entry is not None
+        assert retrieved_entry == database_entry
 
 
 @pytest.mark.dependency(depends=["test_database_client_can_load"])

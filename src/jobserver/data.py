@@ -125,6 +125,33 @@ class _DatabaseEntry:
     def __ne__(self, value) -> bool:
         return not self.__eq__(value)
 
+    def _parse_timestamp(self, timestamp: str | int | float | dt.datetime) -> dt.datetime:
+        # Return if already a datetime object
+        if isinstance(timestamp, dt.datetime):
+            return timestamp
+
+        # Attempt to parse stringified timestamp
+        elif isinstance(timestamp, str):
+            # Try to parse as integer
+            try:
+                timestamp = int(timestamp)
+            except ValueError:
+                # Try to convert to float if it fails as int
+                try:
+                    timestamp = float(timestamp)
+                except ValueError:
+                    raise ValueError(f"Invalid timestamp format: {timestamp}")
+
+        # Convert int to datetime
+        if isinstance(timestamp, int):
+            return dt.datetime.fromtimestamp(timestamp / 1e6)
+        elif isinstance(timestamp, float):
+            return dt.datetime.fromtimestamp(timestamp)
+        else:
+            raise ValueError(
+                f"Timestamp must be a datetime, int, or float. Got {type(timestamp)} instead."
+            )
+
     def get_fields(self) -> dict[str, str | int | float]:
         fields: dict[str, str | int | float] = {}
         for key in self.__dict__.keys():
@@ -166,8 +193,10 @@ class DatabaseEntry:
             client_ip: str,
         ) -> None:
             self.client_token = client_token
-            self.init_time = init_time
-            self.last_message_time = last_message_time
+            self.init_time = self._parse_timestamp(init_time)
+            self.last_message_time = (
+                self._parse_timestamp(last_message_time) if last_message_time is not None else None
+            )
             self.num_messages = num_messages
             self.client_ip = client_ip
 
@@ -201,7 +230,7 @@ class DatabaseEntry:
             client_token: str | None,
         ) -> None:
             self.error_id = error_id
-            self.error_time = error_time
+            self.error_time = self._parse_timestamp(error_time)
             self.severity_level = severity_level
             self.traceback = traceback
             self.job_id = job_id
@@ -229,11 +258,11 @@ class DatabaseEntry:
         def __init__(
             self,
             job_id: str,
-            init_time: dt.datetime,
+            init_time: dt.datetime | int | float | str,
             archived: bool,
         ) -> None:
             self.job_id = job_id
-            self.init_time = init_time
+            self.init_time = self._parse_timestamp(init_time)
             self.archived = archived
 
         def __eq__(self, value) -> bool:
@@ -253,14 +282,14 @@ class DatabaseEntry:
         def __init__(
             self,
             job_id: str,
-            update_time: dt.datetime,
+            update_time: dt.datetime | int,
             new_state: int,
             comment: str,
             client_token: str | None = None,
             error_id: str | None = None,
         ) -> None:
             self.job_id = job_id
-            self.update_time = update_time
+            self.update_time = self._parse_timestamp(update_time)
             self.new_state = new_state
             self.comment = comment
             self.client_token = client_token
@@ -272,6 +301,8 @@ class DatabaseEntry:
                 and self.update_time == value.update_time
                 and self.new_state == value.new_state
                 and self.comment == value.comment
+                and self.client_token == value.client_token
+                and self.error_id == value.error_id
             )
 
     class ServerUpdate(_DatabaseEntry):
@@ -287,14 +318,14 @@ class DatabaseEntry:
 
         def __init__(
             self,
-            update_time: dt.datetime,
+            update_time: dt.datetime | int,
             type: int,
             subtype: int,
             comment: str,
             job_id: str | None,
             client_token: str | None,
         ) -> None:
-            self.update_time = update_time
+            self.update_time = self._parse_timestamp(update_time)
             self.type = type
             self.subtype = subtype
             self.comment = comment
@@ -395,12 +426,11 @@ class DatabaseClient:
     def get_entry(
         self,
         table: enums.DatabaseTable,
-        # database_entry_type: type[_DatabaseEntry],
         primary_key_fields: dict[str, str | int | float],
     ) -> _DatabaseEntry | None:
         database_entry_type = get_database_entry_type(table=table)
         table = database_entry_type._table
-        columns = {_ for _ in database_entry_type.__dict__.keys() if not _.startswith("_")}
+        columns = {_ for _ in database_entry_type.__annotations__.keys()}
 
         query = "SELECT {} FROM {} WHERE {}".format(
             ", ".join(columns),
