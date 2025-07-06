@@ -367,7 +367,7 @@ class DatabaseClient:
         create_new_if_missing: bool = True,
     ) -> None:
         self.config = config
-        self._connect()
+        self._connect(create_new_if_missing=create_new_if_missing)
 
     def __del__(self):
         self.disconnect()
@@ -447,7 +447,7 @@ class DatabaseClient:
 
     def _connect(
         self,
-        create_new_if_missing: bool = True,
+        create_new_if_missing: bool,
     ) -> None:
         """Create a database connection to the SQLite database specified by db_file."""
         try:
@@ -544,6 +544,35 @@ class DatabaseClient:
             kwargs[column] = value
         database_entry = database_entry_type(**kwargs)
         return database_entry
+
+    def search_entries(
+        self,
+        table: enums.DatabaseTable,
+        conditions: list[str],
+        limit: int = 0,
+        offset: int = 0,
+    ) -> list[_DatabaseEntry] | None:
+        database_entry_type = get_database_entry_type(table=table)
+        table = database_entry_type._table
+        columns = {_ for _ in database_entry_type.__annotations__.keys()}
+
+        query = "SELECT {} FROM {} WHERE {}".format(
+            ", ".join(columns),
+            table.value,
+            " AND ".join(conditions),
+        )
+        cursor = self._db_connection.cursor()
+        cursor.execute(query)
+
+        entries = []
+        for row in cursor:
+            kwargs = {}
+            for column, value in zip(columns, row):
+                kwargs[column] = value
+            database_entry = database_entry_type(**kwargs)
+            entries.append(database_entry)
+
+        return entries
 
     # region Connection
     def get_connection_entry(
