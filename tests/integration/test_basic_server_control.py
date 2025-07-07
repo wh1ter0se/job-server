@@ -1,32 +1,16 @@
 import pytest
 import jobserver as jserv
 from fastapi.testclient import TestClient
-from tests.integration.fixtures.file_write_read_job import FileWriteReadJob
-
-
-@pytest.fixture
-def file_write_read_job_server() -> jserv.JobServer:
-    config = jserv.ConfigClient()
-    database = jserv.DatabaseClient(config)
-    job_server = jserv.JobServer(
-        config=config,
-        database=database,
-        allowed_jobs=[FileWriteReadJob],
-        start_at_init=False,
-    )
-    return job_server
+from tests.fixtures.jobs.file_write_read_job import (
+    FileWriteReadJob,
+    file_write_read_job_server,
+    file_write_read_job_client,
+)
 
 
 def test_server_can_start(file_write_read_job_server: jserv.JobServer):
     file_write_read_job_server.start()
     assert file_write_read_job_server._app is not None
-
-
-@pytest.fixture
-def file_write_read_job_client(file_write_read_job_server: jserv.JobServer) -> TestClient:
-    file_write_read_job_server.start()
-    assert file_write_read_job_server._app is not None
-    return TestClient(file_write_read_job_server._app)
 
 
 def test_endpoint_server_status(file_write_read_job_client: TestClient):

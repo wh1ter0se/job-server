@@ -4,7 +4,7 @@ from . import data
 from . import enums
 from . import structs
 from typing import Callable
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Body
 
 
 class Job:
@@ -78,6 +78,14 @@ class Job:
         # Load job state from provided parameters
         self.parameters = job_parameters
 
+    def _update_state(self, new_state: enums.JobUpdateType):
+        # Update the job state and call the update callback if provided
+        if self._update_callback:
+            self._update_callback(new_state)
+
+        # TODO: log the job update to db
+        # TODO: start the next state (if there is one and not paused)
+
     def get_template(self) -> dict:
         # Return the job template as a dictionary
         return {
@@ -88,7 +96,48 @@ class Job:
 
 
 class JobManager:
-    pass
+    def __init__(self) -> None:
+        pass
+
+    def start(self) -> None:
+        # Start the job manager
+        # TODO: Implement
+        pass
+
+    def add_job(self, job: Job) -> None:
+        # Add a job to the manager
+        # TODO: Implement
+        raise NotImplementedError()
+
+    def get_job(self, job_id: str) -> Job | None:
+        # Get a job by its ID
+        # TODO: Implement
+        raise NotImplementedError()
+
+    def get_jobs(self) -> list[Job]:
+        # Get all jobs managed by the manager
+        # TODO: Implement
+        raise NotImplementedError()
+
+    def get_job_templates(self) -> dict:
+        # Get all job templates managed by the manager
+        # TODO: Implement
+        raise NotImplementedError()
+
+    def stop(self) -> None:
+        # Stop the job manager
+        # TODO: Implement
+        raise NotImplementedError()
+
+    def pause_all_jobs(self) -> None:
+        # Pause all jobs
+        # TODO: Implement
+        raise NotImplementedError()
+
+    def update_available_threads(self, available_threads: int) -> None:
+        # Update the number of available threads for job processing
+        # TODO: Implement
+        raise NotImplementedError()
 
 
 class JobServer:
@@ -120,52 +169,66 @@ class JobServer:
         self._app = None
         self._job_manager = JobManager()
 
-        if start_at_init:
-            self.start()
+        # if start_at_init:
+        #     self.start()
 
     def _get_router(self) -> APIRouter:
         router = APIRouter()
 
+        # Connectivity check
+        router.add_api_route("/", self.empty_response, methods=["GET", "POST"])
+
         # Connections
-        router.add_api_route("/get_connection/{client_token}", self.get_connection, methods=["GET"])
-        router.add_api_route("/get_connections/", self.get_connections, methods=["GET"])
+        router.add_api_route("/connection/{client_token}", self.get_connection, methods=["GET"])
+        router.add_api_route("/connections/", self.get_connections, methods=["GET"])
 
         # Errors
-        router.add_api_route("/get_error/{error_id}", self.get_error, methods=["GET"])
-        router.add_api_route("/get_errors/", self.get_errors, methods=["GET"])
+        router.add_api_route("/error/{error_id}", self.get_error, methods=["GET"])
+        router.add_api_route("/errors/", self.get_errors, methods=["GET"])
 
         # Job Templates
-        router.add_api_route("/get_job_template/{name}", self.get_job_templates, methods=["GET"])
-        router.add_api_route("/get_job_templates/", self.get_job_templates, methods=["GET"])
+        router.add_api_route("/job_template/{name}", self.get_job_templates, methods=["GET"])
+        router.add_api_route("/job_templates/", self.get_job_templates, methods=["GET"])
 
-        # Job/Server Updates
-        router.add_api_route("/get_job_updates", self.get_job_updates, methods=["GET"])
-        router.add_api_route("/get_server_updates", self.get_server_updates, methods=["GET"])
-
-        # Job/Server Status
-        router.add_api_route("/get_active_jobs/", self.get_active_jobs, methods=["GET"])
-        router.add_api_route("/get_job_status/{job_id}", self.get_job_status, methods=["GET"])
-        router.add_api_route("/get_server_status/", self.get_server_status, methods=["GET"])
+        # Job/Server Info
+        router.add_api_route("/status/", self.get_server_status, methods=["GET"])
+        router.add_api_route("/server_updates", self.get_server_updates, methods=["GET"])
+        router.add_api_route("/active_jobs", self.get_active_jobs, methods=["GET"])
+        router.add_api_route("/job_updates", self.get_job_updates, methods=["GET"])
 
         # Job Control
-        router.add_api_route("/start_job/{job_id}", self.start_job, methods=["POST"])
-        router.add_api_route("/pause_job/{job_id}", self.pause_job, methods=["POST"])
-        router.add_api_route("/resume_job/{job_id}", self.resume_job, methods=["POST"])
-        router.add_api_route("/cancel_job/{job_id}", self.cancel_job, methods=["POST"])
-        router.add_api_route("/subscribe_to_job/{job_id}", self.subscribe_to_job, methods=["GET"])
+        router.add_api_route("/job/status/{job_id}", self.get_job_status, methods=["GET"])
+        router.add_api_route("/job/submit/{job_id}", self.submit_job, methods=["POST"])
+        router.add_api_route("/job/start/{job_id}", self.start_job, methods=["POST"])
+        router.add_api_route("/job/pause/{job_id}", self.pause_job, methods=["POST"])
+        router.add_api_route("/job/resume/{job_id}", self.resume_job, methods=["POST"])
+        router.add_api_route("/job/cancel/{job_id}", self.cancel_job, methods=["POST"])
+        router.add_api_route("/job/subscribe/{job_id}", self.subscribe_to_job, methods=["GET"])
 
         return router
 
     def start(self):
         self._app = FastAPI()
         self._app.include_router(self._router)
+        self._job_manager.start()
+
+    async def empty_response(self) -> dict:
+        return {}
 
     # region Public API
     async def get_connection(
         self,
         client_token: str,
     ) -> dict:
-        raise NotImplementedError
+        database_entry = self.database.get_entry(
+            table=enums.DatabaseTable.CONNECTION,
+            primary_key_fields={"client_token": client_token},
+        )
+        if database_entry is None:
+            return {}
+
+        connection_entry = data.DatabaseEntry.Connection(**database_entry.__dict__)
+        return connection_entry.__dict__
 
     async def get_connections(
         self,
@@ -182,7 +245,16 @@ class JobServer:
         error_id: str,
         include_traceback: bool = False,
     ) -> dict:
-        raise NotImplementedError
+        database_entry = self.database.get_entry(
+            table=enums.DatabaseTable.ERROR,
+            primary_key_fields={"error_id": error_id},
+            skip_fields=["traceback"] if not include_traceback else [],
+        )
+        if database_entry is None:
+            return {}
+
+        error_entry = data.DatabaseEntry.Error(**database_entry.__dict__)
+        return error_entry.__dict__
 
     async def get_errors(
         self,
@@ -249,20 +321,28 @@ class JobServer:
         self,
     ) -> dict:
         return {
+            "status": "running",
             "init_time": self._init_time.isoformat(),
         }
 
+    async def submit_job(
+        self,
+        job_id: str,
+        job_parameters: dict = Body(...),
+    ) -> dict:
+        raise NotImplementedError()
+
     async def start_job(
         self,
-        job_parameters: dict,
+        job_id: str,
     ) -> dict:
-        raise NotImplementedError
+        raise NotImplementedError()
 
     async def pause_job(
         self,
         job_id: str,
     ) -> dict:
-        raise NotImplementedError
+        raise NotImplementedError()
 
     async def resume_job(
         self,

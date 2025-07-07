@@ -1,17 +1,20 @@
 import pytest
+import datetime as dt
 import jobserver as jserv
 from pathlib import Path
-from fixtures import (  # type:ignore
+from tests.fixtures.clients import (  # type:ignore
     temporary_directory,
     config_client,
     database_client,
+)
+from tests.fixtures.database_entry_factories import (  # type:ignore
     connection_entry_factory,
     error_entry_factory,
     job_status_entry_factory,
     job_update_entry_factory,
     server_update_entry_factory,
     DatabaseEntryFactory,
-    database_entry_factories,
+    database_entry_factory_parameters,
 )
 
 
@@ -47,11 +50,11 @@ class TestDatabaseClientBasicFunctionality:
 @pytest.mark.dependency(depends=["test_database_client_can_load"])
 class TestDatabaseSetFunctions:
     @pytest.mark.dependency(name="test_insert")
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     def test_insert(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -65,11 +68,11 @@ class TestDatabaseSetFunctions:
             set_method=jserv.enums.SQLSetMethod.INSERT,
         )
 
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     def test_insert_twice_fails(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -90,11 +93,11 @@ class TestDatabaseSetFunctions:
                 set_method=jserv.enums.SQLSetMethod.INSERT,
             )
 
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     def test_upsert_on_empty_table(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -108,11 +111,11 @@ class TestDatabaseSetFunctions:
             set_method=jserv.enums.SQLSetMethod.UPSERT,
         )
 
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     def test_upsert_on_non_empty_table(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -132,11 +135,11 @@ class TestDatabaseSetFunctions:
             set_method=jserv.enums.SQLSetMethod.UPSERT,
         )
 
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     def test_update_on_empty_table(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -150,11 +153,11 @@ class TestDatabaseSetFunctions:
             set_method=jserv.enums.SQLSetMethod.UPDATE,
         )
 
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     def test_update_on_non_empty_table(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -179,11 +182,11 @@ class TestDatabaseSetFunctions:
 class TestDatabaseGetFunctions:
     parameters = ("database_entry_factory_name, table",)
 
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     def test_get_on_empty_table_fails(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -207,12 +210,12 @@ class TestDatabaseGetFunctions:
             assert retrieved_entry is not None
 
     @pytest.mark.xfail()
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     @pytest.mark.dependency(depends=["test_insert"])
     def test_get_on_empty_record_fails(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -245,12 +248,12 @@ class TestDatabaseGetFunctions:
         )
         assert retrieved_entry is None
 
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     @pytest.mark.dependency(depends=["test_insert"])
     def test_get_on_non_empty_record(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -281,11 +284,11 @@ class TestDatabaseGetFunctions:
         assert retrieved_entry == database_entry
 
     @pytest.mark.xfail()
-    @pytest.mark.parametrize(*database_entry_factories)
+    @pytest.mark.parametrize(*database_entry_factory_parameters)
     def test_get_on_multiple_records(
         self,
         database_client: jserv.DatabaseClient,
-        database_entry_factory_name: str,  # Fixture -> DatabaseEntryFactory -> jserv.data._DatabaseEntry
+        database_entry_factory_name: str,
         request: pytest.FixtureRequest,
     ) -> None:
         database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
@@ -336,10 +339,164 @@ class TestDatabaseGetFunctions:
 
 @pytest.mark.dependency(depends=["test_database_client_can_load"])
 class TestDatabaseSearchFunctions:
-    @pytest.mark.xfail()
-    def test_search_by_primary_key(self) -> None:
-        pass
+    time_field_parameters = (
+        "database_entry_factory_name,time_field_name",
+        [
+            ("connection_entry_factory", "init_time"),
+            ("error_entry_factory", "error_time"),
+            ("job_status_entry_factory", "init_time"),
+            ("job_update_entry_factory", "update_time"),
+            ("server_update_entry_factory", "update_time"),
+        ],
+    )
 
-    @pytest.mark.xfail()
-    def test_search_by_non_primary_key(self) -> None:
+    @pytest.mark.parametrize(*time_field_parameters)
+    def test_search_with_before_filter(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,
+        time_field_name: str,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
+            database_entry_factory_name
+        )
+        database_entry = database_entry_factory.get()
+
+        # Insert new entry
+        database_client.set_entry(
+            entry=database_entry,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
+
+        # Calculate before/after timestamps
+        fields = database_entry.get_fields()
+        time_field = fields[time_field_name]
+        assert isinstance(time_field, dt.datetime)
+        before_timestamp: dt.datetime = time_field - dt.timedelta(days=1)
+        after_timestamp: dt.datetime = time_field + dt.timedelta(days=1)
+
+        # Search for entry using filter before entry
+        before_entries = database_client.search_entries(
+            database_entry.get_table(),
+            filters=[
+                jserv.data.Before(
+                    time_field_name=time_field_name,
+                    before_time=before_timestamp,
+                )
+            ],
+        )
+        assert before_entries is None or len(before_entries) == 0
+
+        # Search for entry using filter after entry
+        after_entries = database_client.search_entries(
+            database_entry.get_table(),
+            filters=[
+                jserv.data.Before(
+                    time_field_name=time_field_name,
+                    before_time=after_timestamp,
+                )
+            ],
+        )
+        assert after_entries is not None
+        assert len(after_entries) == 1
+        assert after_entries[0] == database_entry
+
+    @pytest.mark.parametrize(*time_field_parameters)
+    def test_search_with_after_filter(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,
+        time_field_name: str,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
+            database_entry_factory_name
+        )
+        database_entry = database_entry_factory.get()
+
+        # Insert new entry
+        database_client.set_entry(
+            entry=database_entry,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
+
+        # Calculate before/after timestamps
+        fields = database_entry.get_fields()
+        time_field = fields[time_field_name]
+        assert isinstance(time_field, dt.datetime)
+        before_timestamp: dt.datetime = time_field - dt.timedelta(days=1)
+        after_timestamp: dt.datetime = time_field + dt.timedelta(days=1)
+
+        # Search for entry using filter after entry
+        after_entries = database_client.search_entries(
+            database_entry.get_table(),
+            filters=[
+                jserv.data.After(
+                    time_field_name=time_field_name,
+                    after_time=after_timestamp,
+                )
+            ],
+        )
+        assert after_entries is None or len(after_entries) == 0
+
+        # Search for entry using filter before entry
+        before_entries = database_client.search_entries(
+            database_entry.get_table(),
+            filters=[
+                jserv.data.After(
+                    time_field_name=time_field_name,
+                    after_time=before_timestamp,
+                )
+            ],
+        )
+        assert before_entries is not None
+        assert len(before_entries) == 1
+        assert before_entries[0] == database_entry
+
+    @pytest.mark.parametrize(*time_field_parameters)
+    def test_search_with_before_and_after_filter(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,
+        time_field_name: str,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
+            database_entry_factory_name
+        )
+        database_entry = database_entry_factory.get()
+
+        # Insert new entry
+        database_client.set_entry(
+            entry=database_entry,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
+
+        # Calculate before/after timestamps
+        fields = database_entry.get_fields()
+        time_field = fields[time_field_name]
+        assert isinstance(time_field, dt.datetime)
+        before_timestamp: dt.datetime = time_field - dt.timedelta(days=1)
+        after_timestamp: dt.datetime = time_field + dt.timedelta(days=1)
+
+        # Search for entry using filter before and after entry
+        between_entries = database_client.search_entries(
+            database_entry.get_table(),
+            filters=[
+                jserv.data.After(
+                    time_field_name=time_field_name,
+                    after_time=before_timestamp,
+                ),
+                jserv.data.Before(
+                    time_field_name=time_field_name,
+                    before_time=after_timestamp,
+                ),
+            ],
+        )
+        assert between_entries is not None
+        assert len(between_entries) == 1
+        assert between_entries[0] == database_entry
+
+    def test_search_by_exact_key_match(self) -> None:
         pass

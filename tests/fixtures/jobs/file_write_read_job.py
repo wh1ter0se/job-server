@@ -1,4 +1,6 @@
+import pytest
 import jobserver as jserv
+from fastapi.testclient import TestClient
 
 
 class FileWriteReadJob(jserv.Job):
@@ -52,3 +54,23 @@ class FileWriteReadJob(jserv.Job):
                 content = f.read()
             print(f"File content: {content}")
             return True
+
+
+@pytest.fixture
+def file_write_read_job_server() -> jserv.JobServer:
+    config = jserv.ConfigClient()
+    database = jserv.DatabaseClient(config)
+    job_server = jserv.JobServer(
+        config=config,
+        database=database,
+        allowed_jobs=[FileWriteReadJob],
+        start_at_init=False,
+    )
+    return job_server
+
+
+@pytest.fixture
+def file_write_read_job_client(file_write_read_job_server: jserv.JobServer) -> TestClient:
+    file_write_read_job_server.start()
+    assert file_write_read_job_server._app is not None
+    return TestClient(file_write_read_job_server._app)

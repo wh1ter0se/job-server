@@ -113,6 +113,35 @@ class ConfigClient:
         self._save_config()
 
 
+class Filter:
+    def apply(self, *args, **kwargs) -> str:
+        raise NotImplementedError()
+
+
+class Before(Filter):
+    time_field_name: str
+    before_time: dt.datetime
+
+    def __init__(self, time_field_name: str, before_time: dt.datetime):
+        self.time_field_name = time_field_name
+        self.before_time = before_time
+
+    def apply(self) -> str:
+        return f"{self.time_field_name} < {int(self.before_time.timestamp() * 1e6)}"
+
+
+class After(Filter):
+    time_field_name: str
+    after_time: dt.datetime
+
+    def __init__(self, time_field_name: str, after_time: dt.datetime):
+        self.time_field_name = time_field_name
+        self.after_time = after_time
+
+    def apply(self, timestamp: dt.datetime) -> str:
+        return f"{self.time_field_name} > {int(self.after_time.timestamp() * 1e6)}"
+
+
 class _DatabaseEntry:
     _table: enums.DatabaseTable
     _primary_keys: list[str]
@@ -523,10 +552,14 @@ class DatabaseClient:
         self,
         table: enums.DatabaseTable,
         primary_key_fields: dict[str, str | int | float],
+        skip_fields: list[str] = [],
     ) -> _DatabaseEntry | None:
         database_entry_type = get_database_entry_type(table=table)
         table = database_entry_type._table
         columns = {_ for _ in database_entry_type.__annotations__.keys()}
+
+        for field in skip_fields:
+            columns.remove(field)
 
         query = "SELECT {} FROM {} WHERE {}".format(
             ", ".join(columns),
@@ -554,9 +587,7 @@ class DatabaseClient:
     def search_entries(
         self,
         table: enums.DatabaseTable,
-        conditions: list[str],
-        before: list[tuple[str, dt.datetime]] | None = None,
-        after: list[tuple[str, dt.datetime]] | None = None,
+        filters: list[Filter] = [],
         limit: int = 0,
         page: int = 0,
         *args,
