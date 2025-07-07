@@ -138,7 +138,7 @@ class After(Filter):
         self.time_field_name = time_field_name
         self.after_time = after_time
 
-    def apply(self, timestamp: dt.datetime) -> str:
+    def apply(self) -> str:
         return f"{self.time_field_name} > {int(self.after_time.timestamp() * 1e6)}"
 
 
@@ -182,13 +182,15 @@ class _DatabaseEntry:
                 f"Timestamp must be a datetime, int, or float. Got {type(timestamp)} instead."
             )
 
-    def get_fields(self) -> dict[str, str | int | float]:
+    def get_fields(self, downcast: bool = True) -> dict[str, str | int | float]:
         fields: dict[str, str | int | float] = {}
         for key in self.__dict__.keys():
             if hasattr(self, key) and not key.startswith("_"):
                 value = getattr(self, key)
                 if value is not None:
-                    if isinstance(value, dt.datetime):
+                    if not downcast:
+                        fields[key] = value
+                    elif isinstance(value, dt.datetime):
                         fields[key] = int(value.timestamp() * 1e6)
                     elif isinstance(value, Enum):
                         fields[key] = value.value
@@ -590,10 +592,30 @@ class DatabaseClient:
         filters: list[Filter] = [],
         limit: int = 0,
         page: int = 0,
-        *args,
-        **kwargs,
     ) -> list[_DatabaseEntry] | None:
-        raise NotImplementedError()
+        conditions = [filter.apply() for filter in filters]
+        parameters = []
+        if limit > 0:
+            conditions.append("LIMIT ?")
+            parameters.append(limit)
+        if page > 0:
+            offset = page * limit
+            conditions.append("OFFSET ?")
+            parameters.append(offset)
+
+        query = f"SELECT * FROM {table.value} "
+        query += " AND ".join(conditions)
+
+        cursor = self._db_connection.cursor()
+        query_result = cursor.execute(query, parameters)
+
+        retrieved_entries = []
+        for row in query_result.fetchall():
+            kwargs = {key: value for key, value in zip(query_result.description, row)}
+            database_entry = get_database_entry_type(table=table)(**kwargs)
+            retrieved_entries.append(database_entry)
+
+        return retrieved_entries
 
     def search_connection_entries(
         self,

@@ -337,8 +337,8 @@ class TestDatabaseGetFunctions:
         assert retrieved_entry_2 == database_entry_2
 
 
-@pytest.mark.xfail()
-@pytest.mark.dependency(depends=["test_database_client_can_load"])
+# @pytest.mark.xfail()
+# @pytest.mark.dependency(depends=["test_database_client_can_load"])
 class TestDatabaseSearchFunctions:
     time_field_parameters = (
         "database_entry_factory_name,time_field_name",
@@ -423,7 +423,7 @@ class TestDatabaseSearchFunctions:
         )
 
         # Calculate before/after timestamps
-        fields = database_entry.get_fields()
+        fields = database_entry.get_fields(downcast=False)
         time_field = fields[time_field_name]
         assert isinstance(time_field, dt.datetime)
         before_timestamp: dt.datetime = time_field - dt.timedelta(days=1)
