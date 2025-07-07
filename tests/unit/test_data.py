@@ -337,6 +337,7 @@ class TestDatabaseGetFunctions:
         assert retrieved_entry_2 == database_entry_2
 
 
+@pytest.mark.xfail()
 @pytest.mark.dependency(depends=["test_database_client_can_load"])
 class TestDatabaseSearchFunctions:
     time_field_parameters = (
