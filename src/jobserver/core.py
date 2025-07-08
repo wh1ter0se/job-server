@@ -119,7 +119,12 @@ class JobManager:
         # TODO: Implement
         raise NotImplementedError()
 
-    def get_job_templates(self) -> dict:
+    def get_job_template(self, name: str) -> dict:
+        # Get a job template by its name
+        # TODO: Implement
+        raise NotImplementedError()
+
+    def get_job_templates(self) -> list[dict]:
         # Get all job templates managed by the manager
         # TODO: Implement
         raise NotImplementedError()
@@ -212,10 +217,10 @@ class JobServer:
         self._app.include_router(self._router)
         self._job_manager.start()
 
+    # region Public API
     async def empty_response(self) -> dict:
         return {}
 
-    # region Public API
     async def get_connection(
         self,
         client_token: str,
@@ -298,21 +303,73 @@ class JobServer:
         items_per_page: int | None = None,
         page: int = 1,
         include_traceback: bool = False,
-    ) -> dict:
-        raise NotImplementedError
+    ) -> list[dict]:
+        filters: list[data._Filter] = []
+        if before is not None:
+            filters.append(
+                data.Filter.Before(
+                    time_field_name="error_time",
+                    before_time=before,
+                )
+            )
+        if after is not None:
+            filters.append(
+                data.Filter.After(
+                    time_field_name="error_time",
+                    after_time=after,
+                )
+            )
+        if severity_level is not None:
+            filters.append(
+                data.Filter.Compare(
+                    field_name="severity_level",
+                    operator=enums.SQLCompareOperator.EQUALS,
+                    value=severity_level,
+                )
+            )
+        if job_id is not None:
+            filters.append(
+                data.Filter.Compare(
+                    field_name="job_id",
+                    operator=enums.SQLCompareOperator.EQUALS,
+                    value=job_id,
+                )
+            )
+        if client_token is not None:
+            filters.append(
+                data.Filter.Compare(
+                    field_name="client_token",
+                    operator=enums.SQLCompareOperator.EQUALS,
+                    value=client_token,
+                )
+            )
+        database_entries = self.database.search_entries(
+            table=enums.DatabaseTable.ERROR,
+            filters=filters,
+            limit=items_per_page,
+            page=page,
+        )
+        if database_entries is None or len(database_entries) < 1:
+            return [{}]
+
+        error_entries = []
+        for database_entry in database_entries:
+            error_entries.append(data.DatabaseEntry.Error(**database_entry.__dict__).__dict__)
+
+        return error_entries
 
     async def get_job_template(
         self,
         name: str,
     ) -> dict:
-        raise NotImplementedError
+        return self._job_manager.get_job_template(name)
 
     async def get_job_templates(
         self,
         items_per_page: int | None = None,
         page: int = 1,
-    ) -> dict:
-        raise NotImplementedError
+    ) -> list[dict]:
+        return self._job_manager.get_job_templates()
 
     async def get_active_jobs(
         self,
@@ -324,23 +381,92 @@ class JobServer:
     async def get_job_updates(
         self,
         job_id: str | None = None,  # Filter
-        before: dt.datetime | None = None,  # Filter
-        after: dt.datetime | None = None,  # Filter
+        update_before: dt.datetime | None = None,  # Filter
+        update_after: dt.datetime | None = None,  # Filter
         descending: bool = True,
         items_per_page: int | None = None,
         page: int = 1,
-    ) -> dict:
-        raise NotImplementedError
+    ) -> list[dict]:
+        filters: list[data._Filter] = []
+        if update_before is not None:
+            filters.append(
+                data.Filter.Before(
+                    time_field_name="update_time",
+                    before_time=update_before,
+                )
+            )
+        if update_after is not None:
+            filters.append(
+                data.Filter.After(
+                    time_field_name="update_time",
+                    after_time=update_after,
+                )
+            )
+        if job_id is not None:
+            filters.append(
+                data.Filter.Compare(
+                    field_name="job_id",
+                    operator=enums.SQLCompareOperator.EQUALS,
+                    value=job_id,
+                )
+            )
+        database_entries = self.database.search_entries(
+            table=enums.DatabaseTable.JOB_UPDATE,
+            filters=filters,
+            limit=items_per_page,
+            page=page,
+        )
+        if database_entries is None or len(database_entries) < 1:
+            return [{}]
+
+        job_update_entries = []
+        for database_entry in database_entries:
+            job_update_entries.append(
+                data.DatabaseEntry.JobUpdate(**database_entry.__dict__).__dict__
+            )
+
+        return job_update_entries
 
     async def get_server_updates(
         self,
-        before: dt.datetime | None = None,  # Filter
-        after: dt.datetime | None = None,  # Filter
+        update_before: dt.datetime | None = None,  # Filter
+        update_after: dt.datetime | None = None,  # Filter
         descending: bool = True,
         items_per_page: int | None = None,
         page: int = 1,
-    ) -> dict:
-        raise NotImplementedError
+    ) -> list[dict]:
+        filters: list[data._Filter] = []
+        if update_before is not None:
+            filters.append(
+                data.Filter.Before(
+                    time_field_name="update_time",
+                    before_time=update_before,
+                )
+            )
+        if update_after is not None:
+            filters.append(
+                data.Filter.After(
+                    time_field_name="update_time",
+                    after_time=update_after,
+                )
+            )
+
+        database_entries = self.database.search_entries(
+            table=enums.DatabaseTable.SERVER_UPDATE,
+            filters=filters,
+            limit=items_per_page,
+            page=page,
+        )
+        if database_entries is None or len(database_entries) < 1:
+            return [{}]
+
+        server_update_entries = []
+        for database_entry in database_entries:
+            server_update_entries.append(
+                data.DatabaseEntry.ServerUpdate(**database_entry.__dict__).__dict__
+            )
+
+        return server_update_entries
 
     async def get_job_status(
         self,
