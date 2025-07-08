@@ -169,8 +169,8 @@ class JobServer:
         self._app = None
         self._job_manager = JobManager()
 
-        # if start_at_init:
-        #     self.start()
+        if start_at_init:
+            self.start()
 
     def _get_router(self) -> APIRouter:
         router = APIRouter()
@@ -232,13 +232,44 @@ class JobServer:
 
     async def get_connections(
         self,
-        before: dt.datetime | None = None,  # Filter
-        after: dt.datetime | None = None,  # Filter
+        client_ip: str | None = None,
+        init_before: dt.datetime | None = None,  # Filter
+        init_after: dt.datetime | None = None,  # Filter
         descending: bool = True,
         items_per_page: int | None = None,
         page: int = 1,
-    ) -> dict:
-        raise NotImplementedError
+    ) -> list[dict]:
+        filters: list[data._Filter] = []
+        if init_before is not None:
+            filters.append(
+                data.Filter.Before(
+                    time_field_name="last_message_time",
+                    before_time=init_before,
+                )
+            )
+        if init_after is not None:
+            filters.append(
+                data.Filter.After(
+                    time_field_name="last_message_time",
+                    after_time=init_after,
+                )
+            )
+        database_entries = self.database.search_entries(
+            table=enums.DatabaseTable.CONNECTION,
+            filters=filters,
+            limit=items_per_page,
+            page=page,
+        )
+        if database_entries is None or len(database_entries) < 1:
+            return [{}]
+
+        connection_entries = []
+        for database_entry in database_entries:
+            connection_entries.append(
+                data.DatabaseEntry.Connection(**database_entry.__dict__).__dict__
+            )
+
+        return connection_entries
 
     async def get_error(
         self,

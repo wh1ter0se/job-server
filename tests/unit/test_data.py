@@ -337,7 +337,6 @@ class TestDatabaseGetFunctions:
         assert retrieved_entry_2 == database_entry_2
 
 
-# @pytest.mark.xfail()
 # @pytest.mark.dependency(depends=["test_database_client_can_load"])
 class TestDatabaseSearchFunctions:
     time_field_parameters = (
@@ -371,7 +370,7 @@ class TestDatabaseSearchFunctions:
         )
 
         # Calculate before/after timestamps
-        fields = database_entry.get_fields()
+        fields = database_entry.get_fields(downcast=False)
         time_field = fields[time_field_name]
         assert isinstance(time_field, dt.datetime)
         before_timestamp: dt.datetime = time_field - dt.timedelta(days=1)
@@ -381,7 +380,7 @@ class TestDatabaseSearchFunctions:
         before_entries = database_client.search_entries(
             database_entry.get_table(),
             filters=[
-                jserv.data.Before(
+                jserv.data.Filter.Before(
                     time_field_name=time_field_name,
                     before_time=before_timestamp,
                 )
@@ -393,7 +392,7 @@ class TestDatabaseSearchFunctions:
         after_entries = database_client.search_entries(
             database_entry.get_table(),
             filters=[
-                jserv.data.Before(
+                jserv.data.Filter.Before(
                     time_field_name=time_field_name,
                     before_time=after_timestamp,
                 )
@@ -433,7 +432,7 @@ class TestDatabaseSearchFunctions:
         after_entries = database_client.search_entries(
             database_entry.get_table(),
             filters=[
-                jserv.data.After(
+                jserv.data.Filter.After(
                     time_field_name=time_field_name,
                     after_time=after_timestamp,
                 )
@@ -445,7 +444,7 @@ class TestDatabaseSearchFunctions:
         before_entries = database_client.search_entries(
             database_entry.get_table(),
             filters=[
-                jserv.data.After(
+                jserv.data.Filter.After(
                     time_field_name=time_field_name,
                     after_time=before_timestamp,
                 )
@@ -475,7 +474,7 @@ class TestDatabaseSearchFunctions:
         )
 
         # Calculate before/after timestamps
-        fields = database_entry.get_fields()
+        fields = database_entry.get_fields(downcast=False)
         time_field = fields[time_field_name]
         assert isinstance(time_field, dt.datetime)
         before_timestamp: dt.datetime = time_field - dt.timedelta(days=1)
@@ -485,11 +484,11 @@ class TestDatabaseSearchFunctions:
         between_entries = database_client.search_entries(
             database_entry.get_table(),
             filters=[
-                jserv.data.After(
+                jserv.data.Filter.After(
                     time_field_name=time_field_name,
                     after_time=before_timestamp,
                 ),
-                jserv.data.Before(
+                jserv.data.Filter.Before(
                     time_field_name=time_field_name,
                     before_time=after_timestamp,
                 ),
@@ -499,5 +498,58 @@ class TestDatabaseSearchFunctions:
         assert len(between_entries) == 1
         assert between_entries[0] == database_entry
 
-    def test_search_by_exact_key_match(self) -> None:
-        pass
+    @pytest.mark.parametrize(
+        "database_entry_factory_name,key_name",
+        [
+            ("connection_entry_factory", "client_ip"),
+            ("error_entry_factory", "severity_level"),
+            ("job_status_entry_factory", "new_state"),
+            ("job_update_entry_factory", "update_time"),
+            ("server_update_entry_factory", "update_time"),
+        ],
+    )
+    def test_search_by_exact_match(
+        self,
+        database_client: jserv.DatabaseClient,
+        database_entry_factory_name: str,
+        key_name: str,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        database_entry_factory: DatabaseEntryFactory = request.getfixturevalue(
+            database_entry_factory_name
+        )
+        database_entry = database_entry_factory.get()
+
+        # Insert new entry
+        database_client.set_entry(
+            entry=database_entry,
+            set_method=jserv.enums.SQLSetMethod.INSERT,
+        )
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_search_by_less_than(
+        self,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_search_by_less_than_or_equal_to(
+        self,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_search_by_greater_than(
+        self,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_search_by_greater_than_or_equal_to(
+        self,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        raise NotImplementedError()

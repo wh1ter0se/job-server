@@ -21,7 +21,7 @@ class ConfigClient:
 
     config_file_path: Path
     create_new_if_missing: bool
-    fill_missing_keys_with_defualts: bool
+    fill_missing_keys_with_defaults: bool
 
     _config: dict
 
@@ -29,11 +29,11 @@ class ConfigClient:
         self,
         config_file_path: Path = Path(os.getcwd()).joinpath(Path(".internal/config.json")),
         create_new_if_missing: bool = True,
-        fill_missing_keys_with_defualts: bool = True,
+        fill_missing_keys_with_defaults: bool = True,
     ):
         self.config_file_path = config_file_path
         self.create_new_if_missing = create_new_if_missing
-        self.fill_missing_keys_with_defualts = fill_missing_keys_with_defualts
+        self.fill_missing_keys_with_defaults = fill_missing_keys_with_defaults
 
         self._load_config()
 
@@ -86,7 +86,7 @@ class ConfigClient:
                 continue
 
             # Othewise, copy the missing key over (if selected)
-            elif self.fill_missing_keys_with_defualts:
+            elif self.fill_missing_keys_with_defaults:
                 self._config[key] = default_config[key]
                 self._save_config()
 
@@ -113,33 +113,49 @@ class ConfigClient:
         self._save_config()
 
 
-class Filter:
+class _Filter:
     def apply(self, *args, **kwargs) -> str:
         raise NotImplementedError()
 
 
-class Before(Filter):
-    time_field_name: str
-    before_time: dt.datetime
+class Filter:
+    class Compare(_Filter):
 
-    def __init__(self, time_field_name: str, before_time: dt.datetime):
-        self.time_field_name = time_field_name
-        self.before_time = before_time
+        field_name: str
+        operator: enums.SQLCompareOperator
+        value: Any
 
-    def apply(self) -> str:
-        return f"{self.time_field_name} < {int(self.before_time.timestamp() * 1e6)}"
+        def __init__(
+            self,
+            field_name: str,
+            operator: enums.SQLCompareOperator,
+            value: Any,
+        ):
+            self.field_name = field_name
+            self.operator = operator
+            self.value = value
 
+        def apply(self) -> str:
+            return f"{self.field_name} {self.operator.value} {self.value}"
 
-class After(Filter):
-    time_field_name: str
-    after_time: dt.datetime
+    class Before(Compare):
+        def __init__(self, time_field_name: str, before_time: dt.datetime):
+            super().__init__(
+                field_name=time_field_name,
+                operator=enums.SQLCompareOperator.LESS_THAN,
+                value=int(before_time.timestamp() * 1e6),
+            )
 
-    def __init__(self, time_field_name: str, after_time: dt.datetime):
-        self.time_field_name = time_field_name
-        self.after_time = after_time
+    class After(Compare):
+        time_field_name: str
+        after_time: dt.datetime
 
-    def apply(self) -> str:
-        return f"{self.time_field_name} > {int(self.after_time.timestamp() * 1e6)}"
+        def __init__(self, time_field_name: str, after_time: dt.datetime):
+            super().__init__(
+                field_name=time_field_name,
+                operator=enums.SQLCompareOperator.GREATER_THAN,
+                value=int(after_time.timestamp() * 1e6),
+            )
 
 
 class _DatabaseEntry:
@@ -181,6 +197,10 @@ class _DatabaseEntry:
             raise ValueError(
                 f"Timestamp must be a datetime, int, or float. Got {type(timestamp)} instead."
             )
+
+    def get_column_names(self) -> list[str]:
+        # TODO: check if this ends up being deterministic or not
+        return list(self.__dict__.keys())
 
     def get_fields(self, downcast: bool = True) -> dict[str, str | int | float]:
         fields: dict[str, str | int | float] = {}
@@ -467,7 +487,7 @@ class DatabaseClient:
             CONSTRAINT ServerUpdate_Connection_FK FOREIGN KEY (client_token) REFERENCES "Connection"(client_token)
         );
         """
-        self._db_connection = sqlite3.connect(db_file_path)
+        self._db_connection = sqlite3.connect(db_file_path, check_same_thread=False)
         cursor = self._db_connection.cursor()
         cursor.execute(create_connection_table_query)
         cursor.execute(generate_error_table_query)
@@ -486,7 +506,7 @@ class DatabaseClient:
             db_file_path = Path(_db_path)
             if db_file_path.exists():
                 # Connect to existing database
-                self._db_connection = sqlite3.connect(db_file_path)
+                self._db_connection = sqlite3.connect(db_file_path, check_same_thread=False)
             elif create_new_if_missing:
                 # Create a new database file
                 self._create_new_database_file()
@@ -502,7 +522,6 @@ class DatabaseClient:
     # endregion Private
 
     # region Public
-
     def disconnect(self) -> None:
         self._db_connection.close()
 
@@ -589,71 +608,43 @@ class DatabaseClient:
     def search_entries(
         self,
         table: enums.DatabaseTable,
-        filters: list[Filter] = [],
-        limit: int = 0,
-        page: int = 0,
+        filters: list[_Filter] = [],
+        limit: int | None = None,
+        page: int | None = None,
+        *args,
+        **kwargs,
     ) -> list[_DatabaseEntry] | None:
         conditions = [filter.apply() for filter in filters]
         parameters = []
-        if limit > 0:
-            conditions.append("LIMIT ?")
-            parameters.append(limit)
-        if page > 0:
-            offset = page * limit
-            conditions.append("OFFSET ?")
-            parameters.append(offset)
 
-        query = f"SELECT * FROM {table.value} "
+        query = f"SELECT * FROM {table.value}"
+        if len(conditions) > 0:
+            query += " WHERE "
         query += " AND ".join(conditions)
+
+        if limit is not None:
+            # Set the page limit
+            query += " LIMIT ?"
+            parameters.append(limit)
+
+            # Set the page offset
+            if page is None:
+                page = 0
+            offset = page * limit
+            query += " OFFSET ?"
+            parameters.append(offset)
 
         cursor = self._db_connection.cursor()
         query_result = cursor.execute(query, parameters)
 
         retrieved_entries = []
         for row in query_result.fetchall():
-            kwargs = {key: value for key, value in zip(query_result.description, row)}
+            if row is None:
+                break
+            kwargs = {key: value for key, value in zip([_[0] for _ in cursor.description], row)}
             database_entry = get_database_entry_type(table=table)(**kwargs)
             retrieved_entries.append(database_entry)
 
         return retrieved_entries
-
-    def search_connection_entries(
-        self,
-        before: dt.datetime | None = None,
-        after: dt.datetime | None = None,
-        limit: int = 0,
-        offset: int = 0,
-    ) -> list[DatabaseEntry.Connection] | None:
-        cursor = self._db_connection.cursor()
-        conditions: list[str] = []
-        parameters: list[str] = []
-        if before is not None:
-            conditions.append("init_time < ?")
-        if after is not None:
-            conditions.append("init_time > ?")
-        if limit > 0:
-            conditions.append("LIMIT ?")
-        if offset > 0:
-            conditions.append("OFFSET ?")
-
-        query = "SELECT * FROM Connection"
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
-
-        query_result = cursor.execute(query, parameters)
-        connection_entries = []
-        for row in query_result.fetchall():
-            # Create a DatabaseEntry.Connection object from the row
-            connection_entry = DatabaseEntry.Connection(
-                client_token=row[0],
-                init_time=dt.datetime.fromtimestamp(row[1]),
-                last_message_time=(dt.datetime.fromtimestamp(row[2]) if row[2] else None),
-                num_messages=row[3],
-                client_ip=row[4],
-            )
-
-            connection_entries.append(connection_entry)
-
-        return connection_entries if len(connection_entries) > 0 else None
 
     # endregion Public

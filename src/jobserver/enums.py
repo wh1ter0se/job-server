@@ -107,3 +107,12 @@ class SQLSetMethod(Enum):
     INSERT = 1
     UPDATE = 2
     UPSERT = 3
+
+
+class SQLCompareOperator(Enum):
+    EQUALS = "="
+    NOT_EQUALS = "!="
+    LESS_THAN = "<"
+    LESS_THAN_OR_EQUAL = "<="
+    GREATER_THAN = ">"
+    GREATER_THAN_OR_EQUAL = ">="
