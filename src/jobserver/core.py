@@ -96,7 +96,11 @@ class Job:
 
 
 class JobManager:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        config: data.ConfigClient,
+        database: data.DatabaseClient,
+    ) -> None:
         pass
 
     def start(self) -> None:
@@ -172,7 +176,7 @@ class JobServer:
         self._init_time = dt.datetime.now()
         self._router = self._get_router()
         self._app = None
-        self._job_manager = JobManager()
+        self._job_manager = JobManager(config=config, database=database)
 
         if start_at_init:
             self.start()
@@ -375,8 +379,28 @@ class JobServer:
         self,
         items_per_page: int = 25,
         page: int = 1,
-    ) -> dict:
-        raise NotImplementedError
+    ) -> list[dict]:
+        filters: list[data._Filter] = [
+            data.Filter.Compare(
+                field_name="archived",
+                operator=enums.SQLCompareOperator.EQUALS,
+                value=0,
+            )
+        ]
+        database_entries = self.database.search_entries(
+            table=enums.DatabaseTable.JOB_STATUS,
+            filters=filters,
+            limit=items_per_page,
+            page=page,
+        )
+        if database_entries is None or len(database_entries) < 1:
+            return [{}]
+
+        job_entries = []
+        for database_entry in database_entries:
+            job_entries.append(data.DatabaseEntry.JobStatus(**database_entry.__dict__).__dict__)
+
+        return job_entries
 
     async def get_job_updates(
         self,
@@ -472,7 +496,14 @@ class JobServer:
         self,
         job_id: str,
     ) -> dict:
-        raise NotImplementedError
+        job_status_entry = self.database.get_entry(
+            table=enums.DatabaseTable.JOB_STATUS,
+            primary_key_fields={"job_id": job_id},
+        )
+        if job_status_entry is None:
+            return {}
+
+        return data.DatabaseEntry.JobStatus(**job_status_entry.__dict__).__dict__
 
     async def get_server_status(
         self,

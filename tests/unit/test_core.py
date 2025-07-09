@@ -1,6 +1,11 @@
 import pytest
 import jobserver as jserv
 from fastapi.testclient import TestClient
+from tests.fixtures.clients import (
+    temporary_directory,
+    config_client,
+    database_client,
+)
 from tests.fixtures.jobs.file_write_read_job import (
     FileWriteReadJob,
     file_write_read_job_server,
@@ -8,8 +13,35 @@ from tests.fixtures.jobs.file_write_read_job import (
 )
 
 
+class TestJobManagerBasicFunctionality:
+    @pytest.mark.dependency(name="test_job_manager_can_start")
+    def test_job_manager_can_start(
+        self,
+        config_client: jserv.ConfigClient,
+        database_client: jserv.DatabaseClient,
+    ):
+        job_manager = jserv.JobManager(
+            config=config_client,
+            database=database_client,
+        )
+        job_manager.start()
+
+    def test_job_manager_returns_job_template(
+        self,
+        config_client: jserv.ConfigClient,
+        database_client: jserv.DatabaseClient,
+    ):
+        job_manager = jserv.JobManager(
+            config=config_client,
+            database=database_client,
+        )
+
+
 class TestJobServerBasicFunctionality:
-    @pytest.mark.dependency()
+    @pytest.mark.dependency(
+        name="test_server_can_start",
+        depends=["test_job_manager_can_start"],
+    )
     def test_server_can_start(self, file_write_read_job_server: jserv.JobServer):
         file_write_read_job_server.start()
         assert file_write_read_job_server._app is not None
@@ -17,7 +49,6 @@ class TestJobServerBasicFunctionality:
     @pytest.mark.dependency(
         name="test_server_get",
         depends=["test_server_can_start"],
-        scope="class",
     )
     def test_server_get(self, file_write_read_job_client: TestClient):
         response = file_write_read_job_client.get("/")
@@ -27,7 +58,6 @@ class TestJobServerBasicFunctionality:
     @pytest.mark.dependency(
         name="test_server_post",
         depends=["test_server_can_start"],
-        scope="class",
     )
     def test_server_post(self, file_write_read_job_client: TestClient):
         response = file_write_read_job_client.post("/")
@@ -35,7 +65,7 @@ class TestJobServerBasicFunctionality:
 
 
 @pytest.mark.xfail(raises=NotImplementedError)
-# @pytest.mark.dependency(depends=["test_server_get", "test_server_post"])
+@pytest.mark.dependency(depends=["test_server_get", "test_server_post"])
 class TestJobServerEndpoints:
     def test_endpoint_connection(self, file_write_read_job_client: TestClient) -> None:
         response = file_write_read_job_client.get("/connection/NOT_REAL_TOKEN")
