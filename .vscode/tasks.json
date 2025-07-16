@@ -4,11 +4,9 @@
         {
             "label": "Clean Environment",
             "type": "shell",
-            "command": "powershell",
+            "command": "bash",
             "args": [
-                "-NoProfile",
-                "-Command",
-                "scripts/clean-environment.ps1;"
+                "scripts/clean-environment.sh"
             ],
             "problemMatcher": [],
             "presentation": {
@@ -20,11 +18,9 @@
         {
             "label": "Setup Environment",
             "type": "shell",
-            "command": "powershell",
+            "command": "bash",
             "args": [
-                "-NoProfile",
-                "-Command",
-                "scripts/setup-environment.ps1;"
+                "scripts/setup-environment.sh"
             ],
             "problemMatcher": [
                 "$python"
@@ -38,11 +34,9 @@
         {
             "label": "Clean Package",
             "type": "shell",
-            "command": "powershell",
+            "command": "bash",
             "args": [
-                "-NoProfile",
-                "-Command",
-                "scripts/clean-package.ps1;"
+                "scripts/clean-package.sh"
             ],
             "problemMatcher": [],
             "presentation": {
@@ -54,11 +48,9 @@
         {
             "label": "Generate Stubs",
             "type": "shell",
-            "command": "powershell",
+            "command": "bash",
             "args": [
-                "-NoProfile",
-                "-Command",
-                "scripts/generate-stubs.ps1;"
+                "scripts/generate-stubs.sh"
             ],
             "problemMatcher": [
                 "$python"
@@ -72,11 +64,9 @@
         {
             "label": "Rebuild & Install Package",
             "type": "shell",
-            "command": "powershell",
+            "command": "bash",
             "args": [
-                "-NoProfile",
-                "-Command",
-                "scripts/rebuild-install-package.ps1;"
+                "scripts/rebuild-install-package.sh"
             ],
             "problemMatcher": [
                 "$python"
@@ -94,11 +84,9 @@
         {
             "label": "Clean All",
             "type": "shell",
-            "command": "powershell",
+            "command": "bash",
             "args": [
-                "-NoProfile",
-                "-Command",
-                "scripts/clean-all.ps1;"
+                "scripts/clean-all.sh"
             ],
             "problemMatcher": [],
             "presentation": {
@@ -110,11 +98,9 @@
         {
             "label": "Run Tests",
             "type": "shell",
-            "command": "powershell",
+            "command": "bash",
             "args": [
-                "-NoProfile",
-                "-Command",
-                "scripts/run-tests.ps1;"
+                "scripts/run-tests.sh"
             ],
             "problemMatcher": [
                 "$python"
@@ -128,11 +114,9 @@
         {
             "label": "Rebuild All",
             "type": "shell",
-            "command": "powershell",
+            "command": "bash",
             "args": [
-                "-NoProfile",
-                "-Command",
-                "scripts/rebuild-all.ps1;"
+                "scripts/rebuild-all.sh"
             ],
             "problemMatcher": [
                 "$python"
