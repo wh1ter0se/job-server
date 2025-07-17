@@ -25,14 +25,9 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Setup environment
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install --upgrade flake8 build setuptools wheel mypy
-        python -m pip install --upgrade --force-reinstall -e .[test]
-        python -m pip install --upgrade --force-reinstall -e .
-        python -m pip --version
-        python -m pip freeze
+        ./scripts/setup-environment.sh
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names

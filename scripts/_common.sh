@@ -12,9 +12,11 @@ VENV_ROOT="${WORKSPACE_ROOT}/.venv"
 if [ "$OS" = "Windows_NT" ]; then
     PYTHON_EXE="${VENV_ROOT}/Scripts/python.exe"
     STUBGEN_EXE="${VENV_ROOT}/Scripts/stubgen.exe"
+    UV_EXE="${VENV_ROOT}/Scripts/uv.exe"
 else
     PYTHON_EXE="${VENV_ROOT}/bin/python"
     STUBGEN_EXE="${VENV_ROOT}/bin/stubgen"
+    UV_EXE="${VENV_ROOT}/bin/uv"
 fi
 
 # PYTHON_EXE="${VENV_ROOT}/Scripts/python.exe"

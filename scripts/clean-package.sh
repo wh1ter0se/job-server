@@ -2,18 +2,17 @@
 set -e
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$script_dir/_common.sh"
-cd "$workspace_root"
 
 echo "[TASK] Cleaning package artifacts..."
 
-build_dir="$workspace_root/build"
+build_dir="$WORKSPACE_ROOT/build"
 if [ -d "$build_dir" ]; then
   echo "Cleaning build folder at '$build_dir'..."
   rm -rf "$build_dir"
   echo "Build folder cleaned."
 fi
 
-dist_dir="$workspace_root/dist"
+dist_dir="$WORKSPACE_ROOT/dist"
 if [ -d "$dist_dir" ]; then
   echo "Cleaning dist folder at '$dist_dir'..."
   rm -rf "$dist_dir"
