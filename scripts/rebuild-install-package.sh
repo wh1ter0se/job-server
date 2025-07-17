@@ -24,15 +24,14 @@ echo "[TASK] Building and installing package..."
 
 if [ "$production" -eq 1 ]; then
   echo "Installing in production mode..."
-  "$PYTHON_EXE" -m build --sdist --wheel
+  "$PYTHON_EXE" -m build --sdist --wheel --installer uv
   wheel=$(ls -t "$WORKSPACE_ROOT"/dist/*.whl | head -n1)
-  "$PYTHON_EXE" -m pip install --force-reinstall "$wheel"
+  uv pip install --python "$PYTHON_EXE" --force-reinstall "$wheel"
 else
   echo "Installing in editable mode for debug..."
-  "$PYTHON_EXE" -m pip install --force-reinstall -e "$WORKSPACE_ROOT"
+  uv pip install --python "$PYTHON_EXE" --force-reinstall --editable "$WORKSPACE_ROOT[test]"
 fi
 
-"$PYTHON_EXE" -m pip --version
-"$PYTHON_EXE" -m pip freeze
+uv pip list --python "$PYTHON_EXE"
 
 echo "[TASK] Package built and installed."

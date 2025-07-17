@@ -8,12 +8,10 @@ cd "$workspace_root"
 
 echo "[TASK] Setting up environment in '$VENV_ROOT'..."
 
-python3 -m venv "$VENV_ROOT"
+uv venv "$VENV_ROOT"
 
-"$PYTHON_EXE" -m pip install --upgrade pip
-"$PYTHON_EXE" -m pip install --upgrade --force-reinstall build setuptools wheel mypy debugpy
-"$PYTHON_EXE" -m pip install --upgrade --force-reinstall .[test]
-"$PYTHON_EXE" -m pip --version
-"$PYTHON_EXE" -m pip freeze
+uv pip install --python "$PYTHON_EXE" --upgrade build setuptools wheel mypy debugpy
+uv pip install --python "$PYTHON_EXE" --upgrade --editable "$WORKSPACE_ROOT[test]"
+uv pip list --python "$PYTHON_EXE"
 
 echo "[TASK] Environment setup complete."
