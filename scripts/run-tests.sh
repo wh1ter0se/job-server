@@ -7,6 +7,6 @@ cd "$workspace_root"
 "$script_dir/rebuild-install-package.sh"
 
 echo "[TASK] Running tests..."
-"$python_exe" -m pytest tests
+"$PYTHON_EXE" -m pytest tests
 
 echo "[TASK] Finished running tests."

@@ -2,7 +2,7 @@
 set -e
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$script_dir/_common.sh"
-cd "$workspace_root"
+# cd "$workspace_root"
 
 production=0
 while [[ $# -gt 0 ]]; do
@@ -24,15 +24,15 @@ echo "[TASK] Building and installing package..."
 
 if [ "$production" -eq 1 ]; then
   echo "Installing in production mode..."
-  "$python_exe" -m build --sdist --wheel
-  wheel=$(ls -t "$workspace_root"/dist/*.whl | head -n1)
-  "$python_exe" -m pip install --force-reinstall "$wheel"
+  "$PYTHON_EXE" -m build --sdist --wheel
+  wheel=$(ls -t "$WORKSPACE_ROOT"/dist/*.whl | head -n1)
+  "$PYTHON_EXE" -m pip install --force-reinstall "$wheel"
 else
   echo "Installing in editable mode for debug..."
-  "$python_exe" -m pip install --force-reinstall -e "$workspace_root"
+  "$PYTHON_EXE" -m pip install --force-reinstall -e "$WORKSPACE_ROOT"
 fi
 
-"$python_exe" -m pip --version
-"$python_exe" -m pip freeze
+"$PYTHON_EXE" -m pip --version
+"$PYTHON_EXE" -m pip freeze
 
 echo "[TASK] Package built and installed."

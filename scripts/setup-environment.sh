@@ -6,14 +6,14 @@ cd "$workspace_root"
 
 "$script_dir/clean-environment.sh"
 
-echo "[TASK] Setting up environment in '$venv_root'..."
+echo "[TASK] Setting up environment in '$VENV_ROOT'..."
 
-python -m venv "$venv_root"
+python3 -m venv "$VENV_ROOT"
 
-"$python_exe" -m pip install --upgrade pip
-"$python_exe" -m pip install --upgrade --force-reinstall build setuptools wheel mypy debugpy
-"$python_exe" -m pip install --upgrade --force-reinstall .[test]
-"$python_exe" -m pip --version
-"$python_exe" -m pip freeze
+"$PYTHON_EXE" -m pip install --upgrade pip
+"$PYTHON_EXE" -m pip install --upgrade --force-reinstall build setuptools wheel mypy debugpy
+"$PYTHON_EXE" -m pip install --upgrade --force-reinstall .[test]
+"$PYTHON_EXE" -m pip --version
+"$PYTHON_EXE" -m pip freeze
 
 echo "[TASK] Environment setup complete."
