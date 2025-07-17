@@ -10,7 +10,7 @@ echo "[TASK] Setting up environment in '$VENV_ROOT'..."
 
 # Instal UV
 curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env.sh
+source $HOME/.local/bin/env
 
 # Install Python
 uv python install 3.12
