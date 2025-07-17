@@ -5,9 +5,9 @@ source "$script_dir/_common.sh"
 
 echo "[TASK] Cleaning environment..."
 
-if [ -d "$venv_root" ]; then
-  echo "Removing stale venv at '$venv_root'..."
-  rm -rf "$venv_root"
+if [ -d "$VENV_ROOT" ]; then
+  echo "Removing stale venv at '$VENV_ROOT'..."
+  rm -rf "$VENV_ROOT"
   echo "Stale venv removed."
 fi
 
